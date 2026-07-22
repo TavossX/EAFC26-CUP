@@ -6,19 +6,24 @@ import { Convite } from './pages/Convite';
 import { ConfigurarTorneio } from './pages/ConfigurarTorneio';
 import { TorneioLiga } from './pages/TorneioLiga';
 import { TorneioMataMata } from './pages/TorneioMataMata';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate replace to="/torneio/configurar" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/convite/:campeonatoId" element={<Convite />} />
-        <Route path="/torneio/configurar" element={<ConfigurarTorneio />} />
-        <Route path="/torneio/liga" element={<TorneioLiga />} />
-        <Route path="/torneio/matamata" element={<TorneioMataMata />} />
+        
+        {/* Rotas Protegidas */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Navigate replace to="/dashboard" />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/torneio/configurar" element={<ConfigurarTorneio />} />
+          <Route path="/torneio/liga" element={<TorneioLiga />} />
+          <Route path="/torneio/matamata" element={<TorneioMataMata />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
