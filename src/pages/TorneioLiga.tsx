@@ -96,7 +96,9 @@ export function TorneioLiga() {
             <Image src={CanecaChopp} alt="Bar do Bira" h="32px" />
             <VStack spacing={0} align="flex-start">
               <Heading size="sm" fontFamily="heading">{torneio.nome}</Heading>
-              <Text fontSize="xs" opacity={0.6}>Pontos Corridos — Ida e Volta</Text>
+              <Text fontSize="xs" opacity={0.6}>
+                Pontos Corridos — {torneio.idaEVolta ? 'Ida e Volta' : 'Jogo Único'}
+              </Text>
             </VStack>
           </HStack>
           <HStack spacing={3}>
@@ -197,7 +199,7 @@ export function TorneioLiga() {
                         <Badge
                           variant="outline" fontSize="2xs" borderRadius="2px"
                         >
-                          {isVolta ? 'Volta' : 'Ida'}
+                          {torneio.idaEVolta ? (isVolta ? 'Volta' : 'Ida') : `Rodada ${rodada}`}
                         </Badge>
                         <Badge
                           colorScheme={rodadaCompleta ? 'gray' : 'orange'}

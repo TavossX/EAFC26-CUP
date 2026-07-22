@@ -87,7 +87,9 @@ export function TorneioMataMata() {
             <Image src={CanecaChopp} alt="Bar do Bira" h="32px" />
             <VStack spacing={0} align="flex-start">
               <Heading size="sm" fontFamily="heading">{torneio.nome}</Heading>
-              <Text fontSize="xs" opacity={0.6}>Mata-mata — Ida e Volta</Text>
+              <Text fontSize="xs" opacity={0.6}>
+                Mata-mata — {torneio.idaEVolta ? 'Ida e Volta' : 'Jogo Único'}
+              </Text>
             </VStack>
           </HStack>
           <HStack spacing={3}>

@@ -11,6 +11,7 @@ export interface Torneio {
   formato: FormatoTorneio;
   status: StatusTorneio;
   criadoEm: string;
+  idaEVolta: boolean;          // true = turno duplo / confronto dois jogos
 }
 
 export interface Participante {
@@ -49,5 +50,6 @@ export interface Partida {
 export interface ConfiguracaoTorneio {
   nome: string;
   formato: FormatoTorneio;
+  idaEVolta: boolean;          // true = turno duplo / confronto dois jogos
   duplas: { amigo: string; time: string }[];
 }

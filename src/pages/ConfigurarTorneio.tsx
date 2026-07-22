@@ -1,4 +1,4 @@
-import {
+﻿import {
   Box,
   Button,
   Flex,
@@ -12,6 +12,7 @@ import {
   Radio,
   RadioGroup,
   SimpleGrid,
+  Switch,
   Text,
   VStack,
   useToast,
@@ -29,15 +30,15 @@ import { useNavigate } from 'react-router-dom';
 import { useTorneioStore } from '../store/torneioStore';
 import type { FormatoTorneio } from '../types/torneio';
 
-// ─── Times sugeridos ─────────────────────────────────────────────────────────
+// Tempos sugeridos
 const TIMES_SUGERIDOS = [
-  'Real Madrid', 'Manchester City', 'Barcelona', 'Bayern München',
+  'Real Madrid', 'Manchester City', 'Barcelona', 'Bayern Munchen',
   'PSG', 'Liverpool', 'Chelsea', 'Arsenal', 'Juventus', 'Inter Milan',
-  'Atlético Madrid', 'Borussia Dortmund', 'AC Milan', 'Napoli',
-  'Ajax', 'Benfica', 'Porto', 'Flamengo', 'São Paulo',
+  'Atletico Madrid', 'Borussia Dortmund', 'AC Milan', 'Napoli',
+  'Ajax', 'Benfica', 'Porto', 'Flamengo', 'Sao Paulo',
 ];
 
-// ─── Ícones SVG ──────────────────────────────────────────────────────────────
+// Icones SVG
 const PlusIcon = () => (
   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -60,25 +61,28 @@ const ResetIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
   </svg>
 );
+const BoltIcon = () => (
+  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+  </svg>
+);
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// Schema
 const schema = z.object({
   nomeTorneio: z.string().min(3, 'Nome muito curto'),
 });
 type FormData = z.infer<typeof schema>;
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// Componente
 export function ConfigurarTorneio() {
   const [formato, setFormato] = useState<FormatoTorneio>('liga');
+  const [idaEVolta, setIdaEVolta] = useState(false);
   const [amigos, setAmigos] = useState<string[]>(['', '']);
   const [times, setTimes] = useState<string[]>(['', '']);
   const [novoAmigo, setNovoAmigo] = useState('');
   const [novoTime, setNovoTime] = useState('');
-  
-  // Etapas do Wizard
   const [step, setStep] = useState<1 | 2 | 3>(1);
-
-  // Estados do Draft (Etapa 2 e 3)
   const [amigosPendentes, setAmigosPendentes] = useState<string[]>([]);
   const [timesDisponiveis, setTimesDisponiveis] = useState<string[]>([]);
   const [amigoSorteado, setAmigoSorteado] = useState<string | null>(null);
@@ -88,17 +92,37 @@ export function ConfigurarTorneio() {
   const toast = useToast();
   const navigate = useNavigate();
   const criarTorneio = useTorneioStore((s) => s.criarTorneio);
+  const sortearTudo  = useTorneioStore((s) => s.sortearTudo);
 
   const { register, handleSubmit, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  // ── Amigos (Etapa 1) ──────────────────────────────────────────────────────
+  const amigosValidos = amigos.filter(Boolean);
+  const timesValidos  = times.filter(Boolean);
+
+  const validarEtapa1 = (): boolean => {
+    if (amigosValidos.length < 2) {
+      toast({ title: 'Adicione pelo menos 2 amigos', status: 'error', duration: 3000, position: 'top' });
+      return false;
+    }
+    if (timesValidos.length < amigosValidos.length) {
+      toast({
+        title: `Voce precisa de pelo menos ${amigosValidos.length} times`,
+        description: `Faltam ${amigosValidos.length - timesValidos.length} time(s)`,
+        status: 'error', duration: 4000, position: 'top',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Amigos
   const adicionarAmigo = () => {
     const val = novoAmigo.trim();
     if (!val) return;
     if (amigos.includes(val)) {
-      toast({ title: 'Participante já adicionado.', status: 'warning', duration: 2000, position: 'top' });
+      toast({ title: 'Participante ja adicionado.', status: 'warning', duration: 2000, position: 'top' });
       return;
     }
     setAmigos((prev) => [...prev.filter(Boolean), val]);
@@ -108,12 +132,12 @@ export function ConfigurarTorneio() {
   const atualizarAmigo = (i: number, val: string) =>
     setAmigos((prev) => prev.map((a, idx) => (idx === i ? val : a)));
 
-  // ── Times (Etapa 1) ───────────────────────────────────────────────────────
+  // Times
   const adicionarTime = (nome?: string) => {
     const val = (nome ?? novoTime).trim();
     if (!val) return;
     if (times.includes(val)) {
-      toast({ title: 'Time já adicionado', status: 'warning', duration: 2000, position: 'top' });
+      toast({ title: 'Time ja adicionado', status: 'warning', duration: 2000, position: 'top' });
       return;
     }
     setTimes((prev) => [...prev.filter(Boolean), val]);
@@ -121,25 +145,9 @@ export function ConfigurarTorneio() {
   };
   const removerTime = (i: number) => setTimes((prev) => prev.filter((_, idx) => idx !== i));
 
-  const amigosValidos = amigos.filter(Boolean);
-  const timesValidos  = times.filter(Boolean);
-
-  // ── Transição: Etapa 1 -> Etapa 2 ─────────────────────────────────────────
+  // Etapa 1 -> Etapa 2 (Sorteio Interativo)
   const iniciarSorteio = handleSubmit(() => {
-    if (amigosValidos.length < 2) {
-      toast({ title: 'Adicione pelo menos 2 amigos', status: 'error', duration: 3000, position: 'top' }); return;
-    }
-    if (formato === 'matamata' && amigosValidos.length < 2) {
-      toast({ title: 'Mata-mata precisa de pelo menos 2 jogadores', status: 'error', duration: 3000, position: 'top' }); return;
-    }
-    if (timesValidos.length < amigosValidos.length) {
-      toast({
-        title: `Você precisa de pelo menos ${amigosValidos.length} times`,
-        description: `Faltam ${amigosValidos.length - timesValidos.length} time(s)`,
-        status: 'error', duration: 4000, position: 'top',
-      }); return;
-    }
-
+    if (!validarEtapa1()) return;
     setAmigosPendentes(amigosValidos);
     setTimesDisponiveis(timesValidos);
     setDuplas([]);
@@ -148,48 +156,61 @@ export function ConfigurarTorneio() {
     setStep(2);
   });
 
-  // ── Sorteio (Etapa 2) ─────────────────────────────────────────────────────
+  // Sorteio Rapido
+  const sortearRapido = handleSubmit(() => {
+    if (!validarEtapa1()) return;
+    sortearTudo({
+      nome: getValues('nomeTorneio'),
+      formato,
+      idaEVolta,
+      amigos: amigosValidos,
+      times: timesValidos,
+    });
+    toast({
+      title: 'Sorteio automatico concluido!',
+      description: 'Times embaralhados e confrontos gerados.',
+      status: 'success', duration: 3000, position: 'top',
+    });
+    navigate(formato === 'liga' ? '/torneio/liga' : '/torneio/matamata');
+  });
+
+  // Draft (Etapa 2)
   const sortearParticipante = () => {
     if (amigosPendentes.length === 0) return;
     const randomIndex = Math.floor(Math.random() * amigosPendentes.length);
     setAmigoSorteado(amigosPendentes[randomIndex]);
-    setTimeSelecionado(''); // Reseta a escolha anterior
+    setTimeSelecionado('');
   };
 
   const confirmarEVincular = () => {
     if (!amigoSorteado || !timeSelecionado) return;
-    
     setDuplas((prev) => [...prev, { amigo: amigoSorteado, time: timeSelecionado }]);
     setAmigosPendentes((prev) => prev.filter((a) => a !== amigoSorteado));
     setTimesDisponiveis((prev) => prev.filter((t) => t !== timeSelecionado));
-    
     setAmigoSorteado(null);
     setTimeSelecionado('');
   };
 
-  // Auto-avanço para Etapa 3 quando terminar o draft
   useEffect(() => {
     if (step === 2 && amigosPendentes.length === 0 && duplas.length > 0 && !amigoSorteado) {
       setStep(3);
     }
   }, [step, amigosPendentes, duplas, amigoSorteado]);
 
-  // ── Geração do Campeonato (Etapa 3) ───────────────────────────────────────
+  // Etapa 3
   const onGerarCampeonato = () => {
-    criarTorneio({
-      nome: getValues('nomeTorneio'),
-      formato,
-      duplas,
-    });
+    criarTorneio({ nome: getValues('nomeTorneio'), formato, idaEVolta, duplas });
     toast({ title: 'Torneio gerado com sucesso!', status: 'success', duration: 3000, position: 'top' });
     navigate(formato === 'liga' ? '/torneio/liga' : '/torneio/matamata');
   };
 
-  // ── UI ────────────────────────────────────────────────────────────────────
+  const idaEVoltaDesc = formato === 'liga'
+    ? 'Gera um segundo turno espelhado (volta em casa).'
+    : 'Cada confronto tera dois jogos — decide-se pelo placar agregado.';
+
   return (
     <Box minH="100vh" px={{ base: 4, md: 8 }} py={10}>
       <Box maxW="760px" mx="auto">
-        {/* Header */}
         <VStack spacing={2} mb={8} align="flex-start">
           <Button size="xs" variant="solid" mb={2} onClick={() => navigate('/')} px={0} _hover={{ bg: 'transparent', color: 'brand.orange' }} leftIcon={<ResetIcon /> as any}>
             Voltar para o Dashboard
@@ -197,12 +218,9 @@ export function ConfigurarTorneio() {
           <Heading size="xl" fontFamily="heading" fontWeight={800} letterSpacing="-0.5px">
             Configurar Campeonato
           </Heading>
-          <Text fontSize="sm">
-            Configure os dados e realize o Sorteio Interativo.
-          </Text>
+          <Text fontSize="sm">Configure os dados e realize o Sorteio Interativo.</Text>
         </VStack>
 
-        {/* Steps indicator */}
         <HStack spacing={0} mb={8}>
           {[1, 2, 3].map((s) => (
             <HStack key={s} spacing={0} flex={1}>
@@ -224,33 +242,25 @@ export function ConfigurarTorneio() {
                 opacity={step >= s ? 1 : 0.4}
                 transition="color 0.3s"
               >
-                {s === 1 ? 'Definição' : s === 2 ? 'Draft' : 'Resumo'}
+                {s === 1 ? 'Definicao' : s === 2 ? 'Draft' : 'Resumo'}
               </Text>
               {s < 3 && <Box flex={1} h="1px" bg={step > s ? 'brand.orange' : 'brand.dark'} _dark={{ bg: step > s ? 'brand.orange' : 'whiteAlpha.300' }} mx={2} transition="all 0.3s" />}
             </HStack>
           ))}
         </HStack>
 
-        {/* Card */}
         <Box
           bg="brand.surfaceLight"
           borderRadius="4px" borderWidth={1} borderColor="brand.dark" _dark={{ bg: 'brand.surfaceDark', borderColor: 'whiteAlpha.300' }}
           p={{ base: 6, md: 8 }}
         >
-          {/* ── Etapa 1: Definição de Dados ───────────────────────────────── */}
           {step === 1 && (
             <VStack spacing={8} align="stretch">
-              
-              {/* Formato e Nome */}
               <VStack spacing={4} align="stretch">
-                <Heading size="md" fontFamily="heading">Informações Básicas</Heading>
+                <Heading size="md" fontFamily="heading">Informacoes Basicas</Heading>
                 <FormControl isInvalid={!!errors.nomeTorneio}>
                   <FormLabel fontSize="sm">Nome do torneio</FormLabel>
-                  <Input
-                    {...register('nomeTorneio')}
-                    placeholder="Copa de Inverno 2026"
-                    variant="outline"
-                  />
+                  <Input {...register('nomeTorneio')} placeholder="Copa de Inverno 2026" variant="outline" />
                   <FormErrorMessage fontSize="xs">{errors.nomeTorneio?.message}</FormErrorMessage>
                 </FormControl>
 
@@ -259,8 +269,8 @@ export function ConfigurarTorneio() {
                   <RadioGroup value={formato} onChange={(v) => setFormato(v as FormatoTorneio)}>
                     <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
                       {[
-                        { val: 'liga', titulo: 'Todos contra Todos', desc: 'Pontos Corridos. Ida e volta.' },
-                        { val: 'matamata', titulo: 'Mata-mata', desc: 'Chaveamento. Pênaltis no desempate.' },
+                        { val: 'liga', titulo: 'Todos contra Todos', desc: 'Pontos Corridos.' },
+                        { val: 'matamata', titulo: 'Mata-mata', desc: 'Chaveamento. Penaltis no desempate.' },
                       ].map(({ val, titulo, desc }) => (
                         <Box
                           key={val} as="label" cursor="pointer" borderRadius="4px" borderWidth={1}
@@ -279,11 +289,37 @@ export function ConfigurarTorneio() {
                     </SimpleGrid>
                   </RadioGroup>
                 </FormControl>
+
+                <Box
+                  borderWidth={1} borderRadius="4px"
+                  borderColor={idaEVolta ? 'brand.orange' : 'brand.dark'}
+                  _dark={{ borderColor: idaEVolta ? 'brand.orange' : 'whiteAlpha.300' }}
+                  p={4} transition="border-color 0.2s"
+                >
+                  <Flex justify="space-between" align="center">
+                    <VStack align="flex-start" spacing={0}>
+                      <Text fontWeight={700} fontSize="sm">Partidas de Ida e Volta</Text>
+                      <Text fontSize="xs" opacity={0.55} mt={1}>{idaEVoltaDesc}</Text>
+                    </VStack>
+                    <Switch
+                      id="switch-ida-volta"
+                      isChecked={idaEVolta}
+                      onChange={(e) => setIdaEVolta(e.target.checked)}
+                      colorScheme="orange"
+                      size="lg"
+                      ml={4}
+                    />
+                  </Flex>
+                  {idaEVolta && (
+                    <Badge mt={3} colorScheme="orange" variant="subtle" borderRadius="2px" fontSize="2xs" px={2}>
+                      ATIVO -- {formato === 'liga' ? 'Turno duplo' : 'Dois jogos por confronto'}
+                    </Badge>
+                  )}
+                </Box>
               </VStack>
 
               <Divider borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} />
 
-              {/* Amigos */}
               <VStack spacing={4} align="stretch">
                 <HStack justify="space-between">
                   <Heading size="sm" fontFamily="heading">Amigos</Heading>
@@ -318,17 +354,15 @@ export function ConfigurarTorneio() {
 
               <Divider borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} />
 
-              {/* Times */}
               <VStack spacing={4} align="stretch">
                 <HStack justify="space-between">
-                  <Heading size="sm" fontFamily="heading">Times Disponíveis</Heading>
+                  <Heading size="sm" fontFamily="heading">Times Disponiveis</Heading>
                   <Badge colorScheme={timesValidos.length >= amigosValidos.length ? 'green' : 'red'} variant="outline" borderRadius="2px" px={2}>
-                    {timesValidos.length}/{amigosValidos.length} mínimo
+                    {timesValidos.length}/{amigosValidos.length} minimo
                   </Badge>
                 </HStack>
-                
                 <Box>
-                  <Text fontSize="2xs" mb={2} fontWeight={600} textTransform="uppercase" letterSpacing="wide">Sugestões</Text>
+                  <Text fontSize="2xs" mb={2} fontWeight={600} textTransform="uppercase" letterSpacing="wide">Sugestoes</Text>
                   <Wrap spacing={2}>
                     {TIMES_SUGERIDOS.filter((t) => !timesValidos.includes(t)).map((t) => (
                       <WrapItem key={t}>
@@ -343,7 +377,6 @@ export function ConfigurarTorneio() {
                     ))}
                   </Wrap>
                 </Box>
-
                 <Wrap spacing={2}>
                   {timesValidos.map((t, i) => (
                     <WrapItem key={`time-${i}`}>
@@ -351,12 +384,11 @@ export function ConfigurarTorneio() {
                         variant="solid" bg="brand.dark" color="brand.light" _dark={{ bg: 'brand.light', color: 'brand.dark' }}
                         borderRadius="2px" px={2} py={1} fontSize="xs" cursor="pointer" onClick={() => removerTime(i)}
                       >
-                        {t} ✕
+                        {t} x
                       </Badge>
                     </WrapItem>
                   ))}
                 </Wrap>
-
                 <HStack>
                   <Input
                     value={novoTime} onChange={(e) => setNovoTime(e.target.value)}
@@ -367,39 +399,47 @@ export function ConfigurarTorneio() {
                 </HStack>
               </VStack>
 
-              <Button
-                onClick={iniciarSorteio}
-                variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px"
-                size="lg" mt={6} rightIcon={<ShuffleIcon /> as any}
-              >
-                Iniciar Sorteio
-              </Button>
+              <VStack spacing={3} align="stretch" mt={4}>
+                <Button
+                  id="btn-sorteio-interativo"
+                  onClick={iniciarSorteio}
+                  variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px"
+                  size="lg" rightIcon={<ShuffleIcon /> as any}
+                  _hover={{ opacity: 0.9 }}
+                >
+                  Sorteio Interativo
+                </Button>
+                <Button
+                  id="btn-sorteio-rapido"
+                  onClick={sortearRapido}
+                  variant="outline" borderRadius="2px" size="lg"
+                  borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.400' }}
+                  leftIcon={<BoltIcon /> as any}
+                  _hover={{ borderColor: 'brand.orange', color: 'brand.orange' }}
+                >
+                  Sorteio Automatico Rapido
+                </Button>
+                <Text fontSize="xs" opacity={0.5} textAlign="center">
+                  O Sorteio Rapido embaralha tudo automaticamente e gera o torneio de uma vez.
+                </Text>
+              </VStack>
             </VStack>
           )}
 
-          {/* ── Etapa 2: Sorteio Interativo (Draft) ───────────────────────── */}
           {step === 2 && (
             <VStack spacing={8} align="stretch">
               <VStack spacing={1} textAlign="center">
                 <Heading size="lg" fontFamily="heading">O Draft</Heading>
-                <Text fontSize="sm" opacity={0.6}>
-                  Sorteie o participante e escolha o time dele.
-                </Text>
+                <Text fontSize="sm" opacity={0.6}>Sorteie o participante e escolha o time dele.</Text>
               </VStack>
-
               <HStack justify="center" spacing={4}>
-                <Badge variant="outline" borderRadius="2px" px={3}>
-                  {amigosPendentes.length} Pendentes
-                </Badge>
-                <Badge variant="outline" colorScheme="orange" borderRadius="2px" px={3}>
-                  {duplas.length} Confirmados
-                </Badge>
+                <Badge variant="outline" borderRadius="2px" px={3}>{amigosPendentes.length} Pendentes</Badge>
+                <Badge variant="outline" colorScheme="orange" borderRadius="2px" px={3}>{duplas.length} Confirmados</Badge>
               </HStack>
-
               <Box p={6} borderWidth={1} borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} borderRadius="4px" textAlign="center" minH="240px" display="flex" flexDirection="column" justifyContent="center">
                 {!amigoSorteado ? (
                   <VStack spacing={4}>
-                    <Text fontSize="sm" opacity={0.6}>Pronto para sortear o próximo jogador?</Text>
+                    <Text fontSize="sm" opacity={0.6}>Pronto para sortear o proximo jogador?</Text>
                     <Button onClick={sortearParticipante} variant="solid" bg="brand.orange" color="brand.dark" size="lg" borderRadius="2px" leftIcon={<ShuffleIcon /> as any}>
                       Sortear Participante
                     </Button>
@@ -408,37 +448,22 @@ export function ConfigurarTorneio() {
                   <VStack spacing={6}>
                     <VStack spacing={0}>
                       <Text fontSize="xs" textTransform="uppercase" letterSpacing="widest" opacity={0.6} mb={2}>Participante Sorteado</Text>
-                      <Heading size="2xl" fontFamily="heading" color="brand.orange">
-                        {amigoSorteado}
-                      </Heading>
+                      <Heading size="2xl" fontFamily="heading" color="brand.orange">{amigoSorteado}</Heading>
                     </VStack>
-
                     <FormControl w="100%" maxW="300px" mx="auto">
                       <Select
                         placeholder="Escolha o time..."
                         value={timeSelecionado}
                         onChange={(e) => setTimeSelecionado(e.target.value)}
-                        variant="outline"
-                        borderRadius="4px"
-                        borderWidth={2}
-                        borderColor="brand.dark"
-                        _dark={{ borderColor: 'whiteAlpha.400' }}
+                        variant="outline" borderRadius="4px" borderWidth={2}
+                        borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.400' }}
                       >
                         {timesDisponiveis.map(t => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </Select>
                     </FormControl>
-
-                    <Button
-                      onClick={confirmarEVincular}
-                      variant="solid"
-                      size="md"
-                      w="100%"
-                      maxW="300px"
-                      borderRadius="2px"
-                      isDisabled={!timeSelecionado}
-                    >
+                    <Button onClick={confirmarEVincular} variant="solid" size="md" w="100%" maxW="300px" borderRadius="2px" isDisabled={!timeSelecionado}>
                       Confirmar e Vincular
                     </Button>
                   </VStack>
@@ -447,25 +472,18 @@ export function ConfigurarTorneio() {
             </VStack>
           )}
 
-          {/* ── Etapa 3: Resumo ───────────────────────────────────────────── */}
           {step === 3 && (
             <VStack spacing={6} align="stretch">
               <VStack spacing={1} textAlign="center">
                 <Heading size="lg" fontFamily="heading">Resumo do Torneio</Heading>
-                <Text fontSize="sm" opacity={0.6}>
-                  Todos os times foram vinculados. Pronto para começar?
-                </Text>
+                <Text fontSize="sm" opacity={0.6}>Todos os times foram vinculados. Pronto para comecar?</Text>
               </VStack>
-
               <Box borderWidth={1} borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} borderRadius="4px" overflow="hidden">
                 {duplas.map((d, i) => (
                   <Flex
-                    key={i}
-                    p={3}
+                    key={i} p={3}
                     borderBottomWidth={i < duplas.length - 1 ? 1 : 0}
-                    borderColor="brand.dark"
-                    justify="space-between"
-                    align="center"
+                    borderColor="brand.dark" justify="space-between" align="center"
                     bg={i % 2 === 0 ? 'blackAlpha.50' : 'transparent'}
                     _dark={{ borderColor: 'whiteAlpha.300', bg: i % 2 === 0 ? 'whiteAlpha.50' : 'transparent' }}
                   >
@@ -476,17 +494,11 @@ export function ConfigurarTorneio() {
                   </Flex>
                 ))}
               </Box>
-
-              <Button
-                onClick={onGerarCampeonato}
-                variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px"
-                size="lg" mt={4}
-              >
+              <Button onClick={onGerarCampeonato} variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px" size="lg" mt={4}>
                 Gerar Campeonato
               </Button>
             </VStack>
           )}
-
         </Box>
       </Box>
     </Box>

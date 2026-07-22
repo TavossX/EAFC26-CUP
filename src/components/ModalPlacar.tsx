@@ -77,12 +77,21 @@ export function ModalPlacar({ isOpen, onClose, partida, modo }: ModalPlacarProps
   }, [idaPartida, golsA, golsB]);
 
   // Mostrar campo de pênaltis?
-  const mostrarPenaltis =
+  // Caso 1: jogo de volta com agregado empatado (comportamento original)
+  const mostrarPenaltisVolta =
     modo === 'matamata' &&
     partida.jogo === 'volta' &&
     idaPartida?.finalizada === true &&
     agregadoAtual !== null &&
     agregadoAtual.golsA_total === agregadoAtual.golsB_total;
+
+  // Caso 2: jogo único (jogo: null) com placar regular empatado
+  const mostrarPenaltisJogoUnico =
+    modo === 'matamata' &&
+    partida.jogo === null &&
+    golsA === golsB;
+
+  const mostrarPenaltis = mostrarPenaltisVolta || mostrarPenaltisJogoUnico;
 
   // Botão desabilitado se pênaltis empatados
   const penaltisEmpatados = mostrarPenaltis && penaltisA === penaltisB;
@@ -138,7 +147,7 @@ export function ModalPlacar({ isOpen, onClose, partida, modo }: ModalPlacarProps
                   borderRadius="2px"
                   px={2}
                 >
-                  {modo === 'liga' ? 'Liga' : `Mata-mata — ${partida.jogo === 'ida' ? 'Jogo de Ida' : 'Jogo de Volta'}`}
+                  {modo === 'liga' ? 'Liga' : `Mata-mata — ${partida.jogo === 'ida' ? 'Jogo de Ida' : partida.jogo === 'volta' ? 'Jogo de Volta' : 'Jogo Único'}`}
                 </Badge>
                 {partida.rodada > 0 && modo === 'liga' && (
                   <Badge variant="outline" fontSize="2xs" borderRadius="2px" px={2}>

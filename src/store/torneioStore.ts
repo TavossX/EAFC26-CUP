@@ -29,10 +29,15 @@ function proximaPotenciaDe2(n: number): number {
   return p;
 }
 
-/** Gera partidas Round-Robin (ida e volta) */
+/**
+ * Gera partidas Round-Robin.
+ * - idaEVolta = true  → turno completo de ida + turno espelhado de volta
+ * - idaEVolta = false → somente o turno de ida
+ */
 function gerarPartidasLiga(
   participantes: Participante[],
-  torneioId: string
+  torneioId: string,
+  idaEVolta: boolean
 ): Partida[] {
   const partidas: Partida[] = [];
   const n = participantes.length;
@@ -53,11 +58,13 @@ function gerarPartidasLiga(
     lista.splice(1, 0, lista.pop()!);
   }
 
-  // Volta (inversão de casa/fora)
-  const idaPartidas = [...partidas];
-  idaPartidas.forEach((p, idx) => {
-    partidas.push(criarPartidaLiga(torneioId, p.participanteBId, p.participanteAId, rodadas + idx + 1));
-  });
+  if (idaEVolta) {
+    // Volta (inversão de casa/fora)
+    const idaPartidas = [...partidas];
+    idaPartidas.forEach((p, idx) => {
+      partidas.push(criarPartidaLiga(torneioId, p.participanteBId, p.participanteAId, rodadas + idx + 1));
+    });
+  }
 
   return partidas;
 }
@@ -86,10 +93,15 @@ function criarPartidaLiga(
   };
 }
 
-/** Gera bracket mata-mata (ida e volta por fase) */
+/**
+ * Gera bracket mata-mata.
+ * - idaEVolta = true  → cada confronto tem ida + volta
+ * - idaEVolta = false → cada confronto tem um único jogo (jogo: null)
+ */
 function gerarPartidasMataMata(
   participantes: Participante[],
-  torneioId: string
+  torneioId: string,
+  idaEVolta: boolean
 ): Partida[] {
   const partidas: Partida[] = [];
   const totalSlots = proximaPotenciaDe2(participantes.length);
@@ -103,11 +115,11 @@ function gerarPartidasMataMata(
   const faseIdx = Math.log2(totalSlots) - 1; // ex: 8 slots → faseIdx=2 (quartas)
   const fase = fases[Math.max(0, faseIdx - 1)] ?? 'quartas';
 
-  // Cria confrontos da primeira fase (ida+volta para cada par)
   for (let i = 0; i < totalSlots; i += 2) {
     const a = slots[i];
     const b = slots[i + 1];
     if (!a) continue; // bye automático
+
     if (!b) {
       // Bye: a avança automaticamente (placar 1x0 fictício)
       const confrontoId = uuidv4();
@@ -115,28 +127,43 @@ function gerarPartidasMataMata(
         id: uuidv4(), torneioId, rodada: 0, fase,
         participanteAId: a.id, participanteBId: 'BYE',
         placarA: 1, placarB: 0, finalizada: true,
-        jogo: 'ida', confrontoId, penaltisA: null, penaltisB: null,
+        jogo: idaEVolta ? 'ida' : null,
+        confrontoId: idaEVolta ? confrontoId : null,
+        penaltisA: null, penaltisB: null,
         vencedorId: a.id,
       });
       continue;
     }
+
     const confrontoId = uuidv4();
-    // Jogo de ida
-    partidas.push({
-      id: uuidv4(), torneioId, rodada: 0, fase,
-      participanteAId: a.id, participanteBId: b.id,
-      placarA: null, placarB: null, finalizada: false,
-      jogo: 'ida', confrontoId, penaltisA: null, penaltisB: null,
-      vencedorId: null,
-    });
-    // Jogo de volta (mandos invertidos)
-    partidas.push({
-      id: uuidv4(), torneioId, rodada: 0, fase,
-      participanteAId: b.id, participanteBId: a.id,
-      placarA: null, placarB: null, finalizada: false,
-      jogo: 'volta', confrontoId, penaltisA: null, penaltisB: null,
-      vencedorId: null,
-    });
+
+    if (idaEVolta) {
+      // Jogo de ida
+      partidas.push({
+        id: uuidv4(), torneioId, rodada: 0, fase,
+        participanteAId: a.id, participanteBId: b.id,
+        placarA: null, placarB: null, finalizada: false,
+        jogo: 'ida', confrontoId, penaltisA: null, penaltisB: null,
+        vencedorId: null,
+      });
+      // Jogo de volta (mandos invertidos)
+      partidas.push({
+        id: uuidv4(), torneioId, rodada: 0, fase,
+        participanteAId: b.id, participanteBId: a.id,
+        placarA: null, placarB: null, finalizada: false,
+        jogo: 'volta', confrontoId, penaltisA: null, penaltisB: null,
+        vencedorId: null,
+      });
+    } else {
+      // Jogo único — sem confrontoId agrupado
+      partidas.push({
+        id: uuidv4(), torneioId, rodada: 0, fase,
+        participanteAId: a.id, participanteBId: b.id,
+        placarA: null, placarB: null, finalizada: false,
+        jogo: null, confrontoId: null, penaltisA: null, penaltisB: null,
+        vencedorId: null,
+      });
+    }
   }
 
   return partidas;
@@ -151,6 +178,7 @@ interface TorneioState {
 
   // Actions
   criarTorneio: (config: ConfiguracaoTorneio) => void;
+  sortearTudo: (config: Omit<ConfiguracaoTorneio, 'duplas'> & { amigos: string[]; times: string[] }) => void;
   registrarPlacarLiga: (partidaId: string, placarA: number, placarB: number) => void;
   registrarPlacarMataMata: (
     partidaId: string,
@@ -180,6 +208,7 @@ export const useTorneioStore = create<TorneioState>()(
           id: torneioId,
           nome: config.nome,
           formato: config.formato,
+          idaEVolta: config.idaEVolta,
           status: 'em_andamento',
           criadoEm: new Date().toISOString(),
         };
@@ -195,10 +224,24 @@ export const useTorneioStore = create<TorneioState>()(
 
         const partidas =
           config.formato === 'liga'
-            ? gerarPartidasLiga(participantes, torneioId)
-            : gerarPartidasMataMata(participantes, torneioId);
+            ? gerarPartidasLiga(participantes, torneioId, config.idaEVolta)
+            : gerarPartidasMataMata(participantes, torneioId, config.idaEVolta);
 
         set({ torneio, participantes, partidas });
+      },
+
+      /* ── Sorteio Automático Rápido ─────────────────────────── */
+      sortearTudo: ({ nome, formato, idaEVolta, amigos, times }) => {
+        const amigosEmbaralhados = shuffle([...amigos]);
+        const timesEmbaralhados  = shuffle([...times]);
+
+        // Parea os primeiros N amigos com os primeiros N times (N = qtde de amigos)
+        const duplas = amigosEmbaralhados.map((amigo, i) => ({
+          amigo,
+          time: timesEmbaralhados[i],
+        }));
+
+        get().criarTorneio({ nome, formato, idaEVolta, duplas });
       },
 
       /* ── Registrar placar (Liga) ───────────────────────────── */
@@ -268,7 +311,33 @@ export const useTorneioStore = create<TorneioState>()(
             : p
         );
 
-        // Se for volta, calcula o agregado e determina o vencedor do confronto
+        // ── Jogo Único (jogo: null, sem confrontoId agrupado) ──────────────
+        if (partida.jogo === null && !partida.confrontoId) {
+          let vencedorId: string | null = null;
+
+          if (placarA !== placarB) {
+            vencedorId = placarA > placarB ? partida.participanteAId : partida.participanteBId;
+          } else if (penaltisA !== undefined && penaltisB !== undefined && penaltisA !== penaltisB) {
+            // Nos pênaltis, A e B mantêm a perspectiva da partida original
+            vencedorId = penaltisA > penaltisB ? partida.participanteAId : partida.participanteBId;
+          }
+          // Se ainda empate nos pênaltis → não propaga (o modal bloqueia o botão)
+
+          if (vencedorId) {
+            novasPartidas = novasPartidas.map((p) =>
+              p.id === partidaId ? { ...p, vencedorId } : p
+            );
+
+            novasPartidas = criarProximaFaseSeNecessario(
+              novasPartidas, partida.fase!, partida.torneioId, participantes, false
+            );
+          }
+
+          set({ partidas: novasPartidas });
+          return;
+        }
+
+        // ── Ida e Volta (jogo: 'ida' | 'volta') ────────────────────────────
         if (partida.jogo === 'volta' && partida.confrontoId) {
           const confronto = novasPartidas.filter(
             (p) => p.confrontoId === partida.confrontoId
@@ -279,7 +348,6 @@ export const useTorneioStore = create<TorneioState>()(
           if (idaPartida?.finalizada && voltaPartida?.finalizada) {
             // No jogo de ida: A joga em casa contra B
             // No jogo de volta: B joga em casa contra A (participantes invertidos!)
-            // idaPartida.participanteAId = time A original
             const aId = idaPartida.participanteAId;
             const bId = idaPartida.participanteBId;
 
@@ -304,7 +372,7 @@ export const useTorneioStore = create<TorneioState>()(
 
               // Cria partidas da próxima fase se todos os confrontos desta fase estiverem resolvidos
               novasPartidas = criarProximaFaseSeNecessario(
-                novasPartidas, partida.fase!, partida.torneioId, participantes
+                novasPartidas, partida.fase!, partida.torneioId, participantes, true
               );
             }
           }
@@ -369,11 +437,13 @@ function criarProximaFaseSeNecessario(
   partidas: Partida[],
   faseAtual: FaseMataMata,
   torneioId: string,
-  participantes: Participante[]
+  participantes: Participante[],
+  idaEVolta: boolean
 ): Partida[] {
-  const confrontosDaFase = partidas.filter(
-    (p) => p.fase === faseAtual && p.jogo === 'volta'
-  );
+  // No modo ida/volta: detecta conclusão pelo jogo 'volta'; no jogo único pelo próprio vencedorId
+  const confrontosDaFase = idaEVolta
+    ? partidas.filter((p) => p.fase === faseAtual && p.jogo === 'volta')
+    : partidas.filter((p) => p.fase === faseAtual && p.jogo === null);
 
   const todosResolvidos = confrontosDaFase.every((p) => p.vencedorId);
   if (!todosResolvidos) return partidas;
@@ -395,20 +465,30 @@ function criarProximaFaseSeNecessario(
     const b = vencedores[i + 1];
     if (!a || !b) continue;
     const confrontoId = uuidv4();
-    novasPartidas.push(
-      {
+
+    if (idaEVolta) {
+      novasPartidas.push(
+        {
+          id: uuidv4(), torneioId, rodada: idxAtual + 1, fase: proximaFase,
+          participanteAId: a.id, participanteBId: b.id,
+          placarA: null, placarB: null, finalizada: false,
+          jogo: 'ida', confrontoId, penaltisA: null, penaltisB: null, vencedorId: null,
+        },
+        {
+          id: uuidv4(), torneioId, rodada: idxAtual + 1, fase: proximaFase,
+          participanteAId: b.id, participanteBId: a.id,
+          placarA: null, placarB: null, finalizada: false,
+          jogo: 'volta', confrontoId, penaltisA: null, penaltisB: null, vencedorId: null,
+        }
+      );
+    } else {
+      novasPartidas.push({
         id: uuidv4(), torneioId, rodada: idxAtual + 1, fase: proximaFase,
         participanteAId: a.id, participanteBId: b.id,
         placarA: null, placarB: null, finalizada: false,
-        jogo: 'ida', confrontoId, penaltisA: null, penaltisB: null, vencedorId: null,
-      },
-      {
-        id: uuidv4(), torneioId, rodada: idxAtual + 1, fase: proximaFase,
-        participanteAId: b.id, participanteBId: a.id,
-        placarA: null, placarB: null, finalizada: false,
-        jogo: 'volta', confrontoId, penaltisA: null, penaltisB: null, vencedorId: null,
-      }
-    );
+        jogo: null, confrontoId: null, penaltisA: null, penaltisB: null, vencedorId: null,
+      });
+    }
   }
 
   return [...partidas, ...novasPartidas];
