@@ -34,9 +34,15 @@ export function Convite() {
   const toast = useToast();
 
   const { torneio, participantes, carregarTorneioPublico } = useTorneioStore();
+  const partidas = useTorneioStore((s) => s.partidas);
 
   const [status, setStatus] = useState<'carregando' | 'ok' | 'erro'>('carregando');
   const [atualizando, setAtualizando] = useState(false);
+
+  // Progresso calculado reativamente (antes dos returns condicionais)
+  const totalFinalizados = partidas.filter((p) => p.finalizada).length;
+  const totalPartidas    = partidas.length;
+  const progresso        = totalPartidas > 0 ? Math.round((totalFinalizados / totalPartidas) * 100) : 0;
 
   // Carrega o torneio pelo ID da URL
   const carregar = async (showToast = false) => {
@@ -104,9 +110,6 @@ export function Convite() {
   }
 
   // ── Torneio carregado ─────────────────────────────────────────────────────
-  const totalFinalizados = useTorneioStore.getState().partidas.filter((p) => p.finalizada).length;
-  const totalPartidas    = useTorneioStore.getState().partidas.length;
-  const progresso        = totalPartidas > 0 ? Math.round((totalFinalizados / totalPartidas) * 100) : 0;
 
   return (
     <Box minH="100vh" bg="brand.surfaceLight" _dark={{ bg: 'brand.surfaceDark' }}>
