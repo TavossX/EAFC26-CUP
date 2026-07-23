@@ -66,7 +66,7 @@ function getBgPosicao(pos: number, total: number): string {
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
-export function TabelaClassificacao() {
+export function TabelaClassificacao({ highlightTop4 = false }: { highlightTop4?: boolean }) {
   const { participantes, partidas } = useTorneioStore();
 
   const classificacao = useMemo(
@@ -147,11 +147,16 @@ export function TabelaClassificacao() {
             {classificacao.map((p, idx) => {
               const pos = idx + 1;
               const sg = p.golsPro - p.golsContra;
-              const borderColorLine = getBorderLeftColor(pos, classificacao.length);
+              const isTop4Destaque = highlightTop4 && pos <= 4;
+              const borderColorLine = isTop4Destaque ? 'brand.orange' : getBorderLeftColor(pos, classificacao.length);
+              const rowBg = isTop4Destaque
+                ? (pos === 1 ? 'rgba(217,119,6,0.1)' : 'rgba(217,119,6,0.05)')
+                : getBgPosicao(pos, classificacao.length);
+              
               return (
                 <Tr
                   key={p.id}
-                  bg={getBgPosicao(pos, classificacao.length)}
+                  bg={rowBg}
                   borderBottom="1px solid"
                   borderColor="blackAlpha.200"
                   _dark={{ borderColor: 'whiteAlpha.100' }}
@@ -176,6 +181,11 @@ export function TabelaClassificacao() {
                     <Text fontWeight={800} fontSize="sm">
                       {pos}º
                     </Text>
+                    {highlightTop4 && pos <= 4 && (
+                      <Badge colorScheme="orange" variant="solid" borderRadius="2px" fontSize="2xs" px={1} mt={0.5}>
+                        PO
+                      </Badge>
+                    )}
                   </Td>
 
                   {/* Nome */}
@@ -237,14 +247,23 @@ export function TabelaClassificacao() {
 
       {/* Legenda */}
       <HStack spacing={4} mt={3} flexWrap="wrap">
-        <HStack spacing={1}>
-          <Box w={2} h={4} bg="brand.orange" />
-          <Text fontSize="xs" opacity={0.7}>Campeão / Promoção</Text>
-        </HStack>
-        <HStack spacing={1}>
-          <Box w={2} h={4} bg="red.800" />
-          <Text fontSize="xs" opacity={0.7}>Zona de Rebaixamento</Text>
-        </HStack>
+        {highlightTop4 ? (
+          <HStack spacing={1}>
+            <Box w={2} h={4} bg="brand.orange" />
+            <Text fontSize="xs" opacity={0.7}>Top 4 - Classificados para os Playoffs</Text>
+          </HStack>
+        ) : (
+          <>
+            <HStack spacing={1}>
+              <Box w={2} h={4} bg="brand.orange" />
+              <Text fontSize="xs" opacity={0.7}>Campeão / Promoção</Text>
+            </HStack>
+            <HStack spacing={1}>
+              <Box w={2} h={4} bg="red.800" />
+              <Text fontSize="xs" opacity={0.7}>Zona de Rebaixamento</Text>
+            </HStack>
+          </>
+        )}
         <Text fontSize="xs" opacity={0.6}>
           Critérios: Pontos → Saldo → GP → Confronto Direto
         </Text>

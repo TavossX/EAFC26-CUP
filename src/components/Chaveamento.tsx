@@ -13,14 +13,16 @@ import { useTorneioStore } from '../store/torneioStore';
 import type { FaseMataMata, Partida } from '../types/torneio';
 import { ModalPlacar } from './ModalPlacar';
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// ─── Constantes ─────────────────────────────────────────────────────
 const FASES_LABEL: Record<FaseMataMata, string> = {
-  oitavas:   'Oitavas de Final',
-  quartas:   'Quartas de Final',
-  semifinal: 'Semifinal',
-  final:     'Final',
+  oitavas:        'Oitavas de Final',
+  quartas:        'Quartas de Final',
+  semifinal:      'Semifinal',
+  final:          'Final',
+  terceiro_lugar: 'Disputa de 3º Lugar',
 };
 
+// Ordem do bracket horizontal (terceiro_lugar fica fora)
 const ORDEM_FASES: FaseMataMata[] = ['oitavas', 'quartas', 'semifinal', 'final'];
 
 // ─── Card de partida (ida ou volta) ──────────────────────────────────────────
@@ -60,7 +62,7 @@ function CardPartida({
       minW="180px"
       w="full"
     >
-      {/* Label jogo de ida/volta */}
+      {/* Label jogo de ida/volta/unico */}
       <Flex
         bg={partida.finalizada ? 'transparent' : 'blackAlpha.100'}
         borderBottomWidth={1}
@@ -71,7 +73,7 @@ function CardPartida({
         align="center"
       >
         <Text fontSize="2xs" opacity={0.6} fontWeight={700} textTransform="uppercase">
-          {partida.jogo === 'ida' ? 'Jogo de Ida' : 'Jogo de Volta'}
+          {partida.jogo === 'ida' ? 'Jogo de Ida' : partida.jogo === 'volta' ? 'Jogo de Volta' : 'Jogo Único'}
         </Text>
         {partida.finalizada ? (
           <Badge variant="outline" borderRadius="2px" fontSize="2xs">Finalizado</Badge>
@@ -209,7 +211,105 @@ function BlocoConfronto({
   );
 }
 
-// ─── Chaveamento principal ────────────────────────────────────────────────────
+// ─── Bloco de jogo unico (sem confrontoId) ─────────────────────────────────────
+function BlocoJogoUnico({ partida, onAbrir }: { partida: Partida; onAbrir: (p: Partida) => void }) {
+  const { participantes } = useTorneioStore();
+  const vencedor = participantes.find((p) => p.id === partida.vencedorId);
+
+  return (
+    <Box
+      bg="brand.surfaceLight"
+      borderRadius="4px" borderWidth={1}
+      borderColor={partida.vencedorId ? 'brand.orange' : 'brand.dark'}
+      _dark={{ bg: 'brand.surfaceDark', borderColor: partida.vencedorId ? 'brand.orange' : 'whiteAlpha.300' }}
+      overflow="hidden"
+      minW={{ base: '100%', md: '200px' }}
+      maxW={{ base: '100%', md: '220px' }}
+    >
+      <CardPartida partida={partida} onAbrir={onAbrir} />
+      {vencedor && (
+        <Flex bg="brand.orange" px={3} py={2} align="center" gap={2} borderTopWidth={1} borderColor="brand.dark">
+          <VStack align="flex-start" spacing={0}>
+            <Text fontSize="xs" color="brand.dark" fontWeight={700} textTransform="uppercase" letterSpacing="wide">
+              {vencedor.nomeAmigo} avança
+            </Text>
+            <Text fontSize="2xs" color="brand.dark" opacity={0.8}>{vencedor.timeSorteado}</Text>
+          </VStack>
+        </Flex>
+      )}
+    </Box>
+  );
+}
+
+// ─── Chaveamento principal ────────────────────────────────────────────────
+function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p: Partida) => void }) {
+  const { participantes } = useTorneioStore();
+  const pA = participantes.find((p) => p.id === partida.participanteAId);
+  const pB = participantes.find((p) => p.id === partida.participanteBId);
+  const vencedor = participantes.find((p) => p.id === partida.vencedorId);
+
+  return (
+    <Box
+      borderWidth={1} borderColor="brand.dark" borderRadius="4px"
+      _dark={{ borderColor: 'whiteAlpha.300' }}
+      overflow="hidden"
+      maxW="280px"
+    >
+      <Flex
+        bg="blackAlpha.100"
+        px={3} py={2} borderBottomWidth={1} borderColor="brand.dark"
+        _dark={{ bg: 'whiteAlpha.50', borderColor: 'whiteAlpha.300' }}
+        align="center" justify="space-between"
+      >
+        <Text fontSize="2xs" opacity={0.6} fontWeight={700} textTransform="uppercase">Disputa de 3º Lugar</Text>
+        {partida.finalizada
+          ? <Badge variant="outline" borderRadius="2px" fontSize="2xs">Finalizado</Badge>
+          : <Badge variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px" fontSize="2xs">Lançar Placar</Badge>
+        }
+      </Flex>
+      <Flex px={3} py={2} justify="space-between" align="center"
+        bg={partida.vencedorId === partida.participanteAId ? 'rgba(217,119,6,0.07)' : 'transparent'}
+      >
+        <VStack align="flex-start" spacing={0}>
+          <Text fontWeight={700} fontSize="sm">{pA?.nomeAmigo ?? '?'}</Text>
+          <Text fontSize="2xs" opacity={0.6}>{pA?.timeSorteado ?? '—'}</Text>
+        </VStack>
+        <Text fontWeight={800} fontSize="lg">{partida.placarA ?? '—'}</Text>
+      </Flex>
+      <Divider borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} />
+      <Flex px={3} py={2} justify="space-between" align="center"
+        bg={partida.vencedorId === partida.participanteBId ? 'rgba(217,119,6,0.07)' : 'transparent'}
+      >
+        <VStack align="flex-start" spacing={0}>
+          <Text fontWeight={700} fontSize="sm">{pB?.nomeAmigo ?? '?'}</Text>
+          <Text fontSize="2xs" opacity={0.6}>{pB?.timeSorteado ?? '—'}</Text>
+        </VStack>
+        <Text fontWeight={800} fontSize="lg">{partida.placarB ?? '—'}</Text>
+      </Flex>
+      {vencedor && (
+        <Flex
+          bg="blackAlpha.200" _dark={{ bg: 'whiteAlpha.100', borderColor: 'whiteAlpha.300' }}
+          px={3} py={2} borderTopWidth={1} borderColor="brand.dark"
+        >
+          <Text fontSize="xs" fontWeight={700}>{vencedor.nomeAmigo} — 3º Lugar</Text>
+        </Flex>
+      )}
+      {!partida.finalizada && (
+        <Box px={3} pb={3} pt={1}>
+          <Badge
+            cursor="pointer" variant="solid" bg="brand.dark" color="brand.light"
+            _dark={{ bg: 'brand.light', color: 'brand.dark' }}
+            borderRadius="2px" w="full" textAlign="center" py={1}
+            onClick={() => !partida.finalizada && onAbrir(partida)}
+          >
+            Registrar Placar
+          </Badge>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export function Chaveamento() {
   const { partidas } = useTorneioStore();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -220,11 +320,13 @@ export function Chaveamento() {
     onOpen();
   };
 
-  // Agrupa partidas por fase
+  // Agrupa partidas do bracket (excluindo terceiro_lugar)
   const fasesPresentesSet = new Set(partidas.map((p) => p.fase).filter(Boolean));
   const fasesPresentes = ORDEM_FASES.filter((f) => fasesPresentesSet.has(f));
 
-  // Confrontos únicos por fase
+  // Partidas de terceiro_lugar
+  const partidasTerceiroLugar = partidas.filter((p) => p.fase === 'terceiro_lugar');
+
   function confrontosDaFase(fase: FaseMataMata) {
     const confrontosSet = new Set<string>();
     partidas.filter((p) => p.fase === fase && p.confrontoId).forEach((p) => {
@@ -233,7 +335,12 @@ export function Chaveamento() {
     return Array.from(confrontosSet);
   }
 
-  if (fasesPresentes.length === 0) {
+  // Partidas de jogo unico (sem confrontoId) por fase
+  function jogoUnicoDaFase(fase: FaseMataMata): Partida[] {
+    return partidas.filter((p) => p.fase === fase && p.jogo === null && !p.confrontoId);
+  }
+
+  if (fasesPresentes.length === 0 && partidasTerceiroLugar.length === 0) {
     return (
       <Flex h="200px" align="center" justify="center">
         <Text color="whiteAlpha.400">Nenhuma chave gerada.</Text>
@@ -276,15 +383,16 @@ export function Chaveamento() {
                   </Badge>
                 </Box>
 
-                {/* Confrontos */}
+                {/* Confrontos (ida+volta) */}
                 <VStack spacing={4} align="stretch" justify="space-around" flex={1}>
                   {confrontosDaFase(fase).map((cId) => (
                     <BlocoConfronto
-                      key={cId}
-                      confrontoId={cId}
-                      partidas={partidas}
-                      onAbrir={abrirModal}
+                      key={cId} confrontoId={cId} partidas={partidas} onAbrir={abrirModal}
                     />
+                  ))}
+                  {/* Jogos unicos da mesma fase */}
+                  {jogoUnicoDaFase(fase).map((p) => (
+                    <BlocoJogoUnico key={p.id} partida={p} onAbrir={abrirModal} />
                   ))}
                 </VStack>
               </VStack>
@@ -321,6 +429,24 @@ export function Chaveamento() {
           ))}
         </HStack>
       </Box>
+
+      {/* Caixa isolada: Disputa de 3o Lugar */}
+      {partidasTerceiroLugar.length > 0 && (
+        <Box mt={6}>
+          <Divider borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} mb={5} />
+          <Text
+            fontSize="xs" fontWeight={700} textTransform="uppercase"
+            letterSpacing="wide" opacity={0.5} mb={3}
+          >
+            Consolacao
+          </Text>
+          <HStack spacing={4} flexWrap="wrap">
+            {partidasTerceiroLugar.map((p) => (
+              <BlocoJogo3oLugar key={p.id} partida={p} onAbrir={abrirModal} />
+            ))}
+          </HStack>
+        </Box>
+      )}
 
       {/* Modal de placar */}
       {partidaSelecionada && (

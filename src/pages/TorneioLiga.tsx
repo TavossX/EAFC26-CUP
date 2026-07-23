@@ -25,6 +25,7 @@ import { supabase } from '../lib/supabase';
 import { TabelaClassificacao } from '../components/TabelaClassificacao';
 import { ModalPlacar } from '../components/ModalPlacar';
 import { ModalCompartilhar } from '../components/ModalCompartilhar';
+import { Chaveamento } from '../components/Chaveamento';
 
 const ResetIcon = () => (
   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -40,7 +41,7 @@ const LogoutIcon = () => (
 import type { Partida } from '../types/torneio';
 
 export function TorneioLiga() {
-  const { torneio, partidas, participantes, resetarTorneio } = useTorneioStore();
+  const { torneio, partidas, participantes, resetarTorneio, gerarPlayoffs } = useTorneioStore();
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
@@ -76,9 +77,14 @@ export function TorneioLiga() {
     navigate('/login');
   };
 
-  // Agrupa partidas por rodada
-  const rodasUnicas = Array.from(new Set(partidas.map((p) => p.rodada))).sort((a, b) => a - b);
+  // Agrupa partidas por rodada — apenas partidas de liga (fase: null)
+  const partidasLiga = partidas.filter((p) => p.fase === null);
+  const rodasUnicas = Array.from(new Set(partidasLiga.map((p) => p.rodada))).sort((a, b) => a - b);
   const totalFinalizadas = partidas.filter((p) => p.finalizada).length;
+
+  // Liga + Playoffs: liga completa quando 100% das partidas sem fase estao finalizadas
+  const isHibrido   = torneio.formato === 'liga_com_playoffs';
+  const ligaCompleta = isHibrido && partidasLiga.length > 0 && partidasLiga.every((p) => p.finalizada);
 
   return (
     <Box minH="100vh" bg="brand.surfaceLight" _dark={{ bg: 'brand.surfaceDark' }}>
@@ -97,7 +103,10 @@ export function TorneioLiga() {
             <VStack spacing={0} align="flex-start">
               <Heading size="sm" fontFamily="heading">{torneio.nome}</Heading>
               <Text fontSize="xs" opacity={0.6}>
-                Pontos Corridos — {torneio.idaEVolta ? 'Ida e Volta' : 'Jogo Único'}
+                {torneio.formato === 'liga_com_playoffs'
+                  ? `Liga + Playoffs — ${torneio.idaEVolta ? 'Ida e Volta' : 'Jogo Único'}`
+                  : `Pontos Corridos — ${torneio.idaEVolta ? 'Ida e Volta' : 'Jogo Único'}`
+                }
               </Text>
             </VStack>
           </HStack>
@@ -161,18 +170,58 @@ export function TorneioLiga() {
                 {participantes.length} participantes
               </Badge>
             </HStack>
-            <TabelaClassificacao />
+            <TabelaClassificacao highlightTop4={isHibrido} />
           </Box>
+
+          {/* Banner Iniciar Playoffs (liga_com_playoffs apenas) */}
+          {isHibrido && ligaCompleta && !torneio.playoffsGerados && (
+            <Box
+              borderWidth={2} borderColor="brand.orange" borderRadius="4px"
+              p={6} textAlign="center"
+              bg="rgba(217,119,6,0.05)"
+            >
+              <VStack spacing={3}>
+                <Badge colorScheme="orange" variant="outline" borderRadius="2px" px={3} fontSize="xs">
+                  FASE DE LIGA ENCERRADA
+                </Badge>
+                <Heading size="md" fontFamily="heading">Playoffs — Top 4</Heading>
+                <Text fontSize="sm" opacity={0.65}>
+                  1º × 4º &nbsp;&bull;&nbsp; 2º × 3º
+                </Text>
+                <Button
+                  id="btn-iniciar-playoffs"
+                  mt={2}
+                  size="lg"
+                  bg="brand.orange"
+                  color="brand.dark"
+                  borderRadius="2px"
+                  fontWeight={800}
+                  onClick={gerarPlayoffs}
+                  _hover={{ opacity: 0.9 }}
+                >
+                  Iniciar Playoffs
+                </Button>
+              </VStack>
+            </Box>
+          )}
+
+          {/* Chaveamento de playoffs */}
+          {isHibrido && torneio.playoffsGerados && (
+            <Box>
+              <Heading size="md" fontFamily="heading" mb={4}>Playoffs</Heading>
+              <Chaveamento />
+            </Box>
+          )}
 
           <Divider borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }} />
 
-          {/* Rodadas / Jogos */}
+          {/* Rodadas / Jogos -- apenas partidas de liga */}
           <Box>
             <Heading size="md" fontFamily="heading" mb={4}>Rodadas</Heading>
 
             <Accordion allowMultiple defaultIndex={[0]}>
               {rodasUnicas.map((rodada) => {
-                const jogosRodada = partidas.filter((p) => p.rodada === rodada);
+                const jogosRodada = partidasLiga.filter((p) => p.rodada === rodada);
                 const finalizadosRodada = jogosRodada.filter((p) => p.finalizada).length;
                 const rodadaCompleta = finalizadosRodada === jogosRodada.length;
                 const isVolta = rodada > rodasUnicas.length / 2;

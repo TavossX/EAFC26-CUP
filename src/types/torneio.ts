@@ -1,9 +1,9 @@
 // ─── Tipos compartilhados do domínio Copa de Amigos ──────────────────────────
 
-export type FormatoTorneio = 'liga' | 'matamata';
+export type FormatoTorneio = 'liga' | 'matamata' | 'liga_com_playoffs';
 export type StatusTorneio  = 'configurando' | 'em_andamento' | 'finalizado';
 export type TipoJogo       = 'ida' | 'volta' | null;
-export type FaseMataMata   = 'oitavas' | 'quartas' | 'semifinal' | 'final';
+export type FaseMataMata   = 'oitavas' | 'quartas' | 'semifinal' | 'final' | 'terceiro_lugar';
 
 export interface Torneio {
   id: string;
@@ -12,6 +12,7 @@ export interface Torneio {
   status: StatusTorneio;
   criadoEm: string;
   idaEVolta: boolean;          // true = turno duplo / confronto dois jogos
+  playoffsGerados: boolean;    // liga_com_playoffs: true após gerarPlayoffs()
 }
 
 export interface Participante {
@@ -33,18 +34,19 @@ export interface Partida {
   id: string;
   torneioId: string;
   rodada: number;                      // Liga: número da rodada | Mata-mata: índice de fase
-  fase: FaseMataMata | null;           // Mata-mata: fase da partida
+  fase: FaseMataMata | null;           // null = fase de liga | Playoffs: 'semifinal' | 'final' | 'terceiro_lugar'
   participanteAId: string;
   participanteBId: string;
   placarA: number | null;
   placarB: number | null;
   finalizada: boolean;
   // Mata-mata extra
-  jogo: TipoJogo;                      // 'ida' | 'volta' | null (liga)
+  jogo: TipoJogo;                      // 'ida' | 'volta' | null (liga / jogo único)
   confrontoId: string | null;          // agrupa ida+volta do mesmo par
   penaltisA: number | null;            // só preenchido em caso de empate agregado
   penaltisB: number | null;
   vencedorId: string | null;           // calculado automaticamente
+  perdedorId: string | null;           // calculado automaticamente (usado para 3º lugar)
 }
 
 export interface ConfiguracaoTorneio {

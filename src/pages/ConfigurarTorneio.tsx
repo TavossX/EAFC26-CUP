@@ -1,4 +1,4 @@
-﻿import {
+import {
   Box,
   Button,
   Flex,
@@ -106,6 +106,14 @@ export function ConfigurarTorneio() {
       toast({ title: 'Adicione pelo menos 2 amigos', status: 'error', duration: 3000, position: 'top' });
       return false;
     }
+    if (formato === 'liga_com_playoffs' && amigosValidos.length < 4) {
+      toast({
+        title: 'Liga + Playoffs exige pelo menos 4 participantes',
+        description: 'O Top 4 precisa de ao menos 4 classificados.',
+        status: 'error', duration: 4000, position: 'top',
+      });
+      return false;
+    }
     if (timesValidos.length < amigosValidos.length) {
       toast({
         title: `Voce precisa de pelo menos ${amigosValidos.length} times`,
@@ -171,7 +179,7 @@ export function ConfigurarTorneio() {
       description: 'Times embaralhados e confrontos gerados.',
       status: 'success', duration: 3000, position: 'top',
     });
-    navigate(formato === 'liga' ? '/torneio/liga' : '/torneio/matamata');
+    navigate(formato === 'matamata' ? '/torneio/matamata' : '/torneio/liga');
   });
 
   // Draft (Etapa 2)
@@ -201,12 +209,14 @@ export function ConfigurarTorneio() {
   const onGerarCampeonato = () => {
     criarTorneio({ nome: getValues('nomeTorneio'), formato, idaEVolta, duplas });
     toast({ title: 'Torneio gerado com sucesso!', status: 'success', duration: 3000, position: 'top' });
-    navigate(formato === 'liga' ? '/torneio/liga' : '/torneio/matamata');
+    navigate(formato === 'matamata' ? '/torneio/matamata' : '/torneio/liga');
   };
 
-  const idaEVoltaDesc = formato === 'liga'
-    ? 'Gera um segundo turno espelhado (volta em casa).'
-    : 'Cada confronto tera dois jogos — decide-se pelo placar agregado.';
+  const idaEVoltaDesc = formato === 'matamata'
+    ? 'Cada confronto tera dois jogos -- decide-se pelo placar agregado.'
+    : formato === 'liga_com_playoffs'
+    ? 'Liga em turno duplo + playoffs com ida e volta.'
+    : 'Gera um segundo turno espelhado (volta em casa).';
 
   return (
     <Box minH="100vh" px={{ base: 4, md: 8 }} py={10}>
@@ -267,10 +277,11 @@ export function ConfigurarTorneio() {
                 <FormControl>
                   <FormLabel fontSize="sm">Formato</FormLabel>
                   <RadioGroup value={formato} onChange={(v) => setFormato(v as FormatoTorneio)}>
-                    <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+                    <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={3}>
                       {[
                         { val: 'liga', titulo: 'Todos contra Todos', desc: 'Pontos Corridos.' },
                         { val: 'matamata', titulo: 'Mata-mata', desc: 'Chaveamento. Penaltis no desempate.' },
+                        { val: 'liga_com_playoffs', titulo: 'Liga + Playoffs', desc: 'Pontos corridos + Top 4 se enfrentam.' },
                       ].map(({ val, titulo, desc }) => (
                         <Box
                           key={val} as="label" cursor="pointer" borderRadius="4px" borderWidth={1}
