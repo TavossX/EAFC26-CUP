@@ -20,6 +20,7 @@ export interface Participante {
   torneioId: string;
   nomeAmigo: string;
   timeSorteado: string;
+  logoTime?: string;
   // Estatísticas (Liga)
   pontos: number;
   jogos: number;
@@ -53,5 +54,5 @@ export interface ConfiguracaoTorneio {
   nome: string;
   formato: FormatoTorneio;
   idaEVolta: boolean;          // true = turno duplo / confronto dois jogos
-  duplas: { amigo: string; time: string }[];
+  duplas: { amigo: string; time: string; logoTime?: string }[];
 }

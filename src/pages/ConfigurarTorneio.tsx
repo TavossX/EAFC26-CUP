@@ -18,9 +18,8 @@ import {
   useToast,
   Badge,
   Divider,
-  Wrap,
-  WrapItem,
-  Select,
+  Image,
+  useColorMode
 } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -29,14 +28,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useTorneioStore } from '../store/torneioStore';
 import type { FormatoTorneio } from '../types/torneio';
+import { ThemeToggle } from '../components/ThemeToggle';
+import AsyncSelect from 'react-select/async';
+import Select from 'react-select';
+import { searchTeams, TimeFutebol } from '../services/apiFutebol';
 
-// Tempos sugeridos
-const TIMES_SUGERIDOS = [
-  'Real Madrid', 'Manchester City', 'Barcelona', 'Bayern Munchen',
-  'PSG', 'Liverpool', 'Chelsea', 'Arsenal', 'Juventus', 'Inter Milan',
-  'Atletico Madrid', 'Borussia Dortmund', 'AC Milan', 'Napoli',
-  'Ajax', 'Benfica', 'Porto', 'Flamengo', 'Sao Paulo',
-];
+// Tipos para os passos
 
 // Icones SVG
 const PlusIcon = () => (
@@ -79,15 +76,17 @@ export function ConfigurarTorneio() {
   const [formato, setFormato] = useState<FormatoTorneio>('liga');
   const [idaEVolta, setIdaEVolta] = useState(false);
   const [amigos, setAmigos] = useState<string[]>(['', '']);
-  const [times, setTimes] = useState<string[]>(['', '']);
+  const [times, setTimes] = useState<TimeFutebol[]>([]);
   const [novoAmigo, setNovoAmigo] = useState('');
-  const [novoTime, setNovoTime] = useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [amigosPendentes, setAmigosPendentes] = useState<string[]>([]);
-  const [timesDisponiveis, setTimesDisponiveis] = useState<string[]>([]);
+  const [timesDisponiveis, setTimesDisponiveis] = useState<TimeFutebol[]>([]);
   const [amigoSorteado, setAmigoSorteado] = useState<string | null>(null);
-  const [timeSelecionado, setTimeSelecionado] = useState<string>('');
-  const [duplas, setDuplas] = useState<{amigo: string; time: string}[]>([]);
+  const [timeSelecionado, setTimeSelecionado] = useState<TimeFutebol | null>(null);
+  const [duplas, setDuplas] = useState<{amigo: string; time: string; logoTime?: string}[]>([]);
+  
+  const { colorMode } = useColorMode();
+  const isDark = colorMode === 'dark';
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -99,7 +98,7 @@ export function ConfigurarTorneio() {
   });
 
   const amigosValidos = amigos.filter(Boolean);
-  const timesValidos  = times.filter(Boolean);
+  const timesValidos  = times;
 
   const validarEtapa1 = (): boolean => {
     if (amigosValidos.length < 2) {
@@ -140,18 +139,64 @@ export function ConfigurarTorneio() {
   const atualizarAmigo = (i: number, val: string) =>
     setAmigos((prev) => prev.map((a, idx) => (idx === i ? val : a)));
 
-  // Times
-  const adicionarTime = (nome?: string) => {
-    const val = (nome ?? novoTime).trim();
-    if (!val) return;
-    if (times.includes(val)) {
-      toast({ title: 'Time ja adicionado', status: 'warning', duration: 2000, position: 'top' });
-      return;
-    }
-    setTimes((prev) => [...prev.filter(Boolean), val]);
-    setNovoTime('');
+  // Select Styles
+  const customSelectStyles = {
+    control: (base: any, state: any) => ({
+      ...base,
+      borderRadius: '2px',
+      boxShadow: 'none',
+      borderColor: state.isFocused ? '#E48F22' : (isDark ? 'rgba(255,255,255,0.3)' : '#2B231D'),
+      backgroundColor: 'transparent',
+      '&:hover': {
+        borderColor: '#E48F22',
+      }
+    }),
+    menu: (base: any) => ({
+      ...base,
+      borderRadius: '2px',
+      boxShadow: 'none',
+      border: '1px solid',
+      borderColor: isDark ? 'rgba(255,255,255,0.3)' : '#2B231D',
+      backgroundColor: isDark ? '#3A3129' : '#EBE6DF',
+      zIndex: 5,
+    }),
+    option: (base: any, state: any) => ({
+      ...base,
+      backgroundColor: state.isFocused ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
+      color: 'inherit',
+      cursor: 'pointer',
+      '&:active': {
+        backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+      }
+    }),
+    multiValue: (base: any) => ({
+      ...base,
+      backgroundColor: isDark ? '#F7F5F0' : '#2B231D',
+      borderRadius: '2px',
+    }),
+    multiValueLabel: (base: any) => ({
+      ...base,
+      color: isDark ? '#2B231D' : '#F7F5F0',
+      fontSize: '0.75rem',
+    }),
+    multiValueRemove: (base: any) => ({
+      ...base,
+      color: isDark ? '#2B231D' : '#F7F5F0',
+      '&:hover': {
+        backgroundColor: 'transparent',
+        color: 'red',
+      }
+    })
   };
-  const removerTime = (i: number) => setTimes((prev) => prev.filter((_, idx) => idx !== i));
+
+  const loadOptions = async (inputValue: string) => {
+    if (inputValue.length < 2) return [];
+    const results = await searchTeams(inputValue);
+    return results.map(team => ({
+      value: team,
+      label: team.nome,
+    }));
+  };
 
   // Etapa 1 -> Etapa 2 (Sorteio Interativo)
   const iniciarSorteio = handleSubmit(() => {
@@ -160,7 +205,7 @@ export function ConfigurarTorneio() {
     setTimesDisponiveis(timesValidos);
     setDuplas([]);
     setAmigoSorteado(null);
-    setTimeSelecionado('');
+    setTimeSelecionado(null);
     setStep(2);
   });
 
@@ -187,16 +232,16 @@ export function ConfigurarTorneio() {
     if (amigosPendentes.length === 0) return;
     const randomIndex = Math.floor(Math.random() * amigosPendentes.length);
     setAmigoSorteado(amigosPendentes[randomIndex]);
-    setTimeSelecionado('');
+    setTimeSelecionado(null);
   };
 
   const confirmarEVincular = () => {
     if (!amigoSorteado || !timeSelecionado) return;
-    setDuplas((prev) => [...prev, { amigo: amigoSorteado, time: timeSelecionado }]);
+    setDuplas((prev) => [...prev, { amigo: amigoSorteado, time: timeSelecionado.nome, logoTime: timeSelecionado.logo }]);
     setAmigosPendentes((prev) => prev.filter((a) => a !== amigoSorteado));
-    setTimesDisponiveis((prev) => prev.filter((t) => t !== timeSelecionado));
+    setTimesDisponiveis((prev) => prev.filter((t) => t.id !== timeSelecionado.id));
     setAmigoSorteado(null);
-    setTimeSelecionado('');
+    setTimeSelecionado(null);
   };
 
   useEffect(() => {
@@ -221,15 +266,18 @@ export function ConfigurarTorneio() {
   return (
     <Box minH="100vh" px={{ base: 4, md: 8 }} py={10}>
       <Box maxW="760px" mx="auto">
-        <VStack spacing={2} mb={8} align="flex-start">
-          <Button size="xs" variant="solid" mb={2} onClick={() => navigate('/')} px={0} _hover={{ bg: 'transparent', color: 'brand.orange' }} leftIcon={<ResetIcon /> as any}>
-            Voltar para o Dashboard
-          </Button>
-          <Heading size="xl" fontFamily="heading" fontWeight={800} letterSpacing="-0.5px">
-            Configurar Campeonato
-          </Heading>
-          <Text fontSize="sm">Configure os dados e realize o Sorteio Interativo.</Text>
-        </VStack>
+        <HStack justify="space-between" mb={8} align="flex-start">
+          <VStack spacing={2} align="flex-start">
+            <Button size="xs" variant="solid" mb={2} onClick={() => navigate('/')} px={0} _hover={{ bg: 'transparent', color: 'brand.orange' }} leftIcon={<ResetIcon /> as any}>
+              Voltar para o Dashboard
+            </Button>
+            <Heading size="xl" fontFamily="heading" fontWeight={800} letterSpacing="-0.5px">
+              Configurar Campeonato
+            </Heading>
+            <Text fontSize="sm">Configure os dados e realize o Sorteio Interativo.</Text>
+          </VStack>
+          <ThemeToggle />
+        </HStack>
 
         <HStack spacing={0} mb={8}>
           {[1, 2, 3].map((s) => (
@@ -372,42 +420,25 @@ export function ConfigurarTorneio() {
                     {timesValidos.length}/{amigosValidos.length} minimo
                   </Badge>
                 </HStack>
-                <Box>
-                  <Text fontSize="2xs" mb={2} fontWeight={600} textTransform="uppercase" letterSpacing="wide">Sugestoes</Text>
-                  <Wrap spacing={2}>
-                    {TIMES_SUGERIDOS.filter((t) => !timesValidos.includes(t)).map((t) => (
-                      <WrapItem key={t}>
-                        <Badge
-                          cursor="pointer" variant="outline" borderRadius="2px" px={2} py={1} fontSize="xs"
-                          _hover={{ bg: 'brand.orange', color: 'brand.dark', borderColor: 'brand.orange' }}
-                          onClick={() => adicionarTime(t)}
-                        >
-                          + {t}
-                        </Badge>
-                      </WrapItem>
-                    ))}
-                  </Wrap>
-                </Box>
-                <Wrap spacing={2}>
-                  {timesValidos.map((t, i) => (
-                    <WrapItem key={`time-${i}`}>
-                      <Badge
-                        variant="solid" bg="brand.dark" color="brand.light" _dark={{ bg: 'brand.light', color: 'brand.dark' }}
-                        borderRadius="2px" px={2} py={1} fontSize="xs" cursor="pointer" onClick={() => removerTime(i)}
-                      >
-                        {t} x
-                      </Badge>
-                    </WrapItem>
-                  ))}
-                </Wrap>
-                <HStack>
-                  <Input
-                    value={novoTime} onChange={(e) => setNovoTime(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && adicionarTime()}
-                    placeholder="Time personalizado..." variant="outline" size="sm"
+                <FormControl>
+                  <AsyncSelect
+                    isMulti
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadOptions}
+                    value={times.map(t => ({ value: t, label: t.nome }))}
+                    onChange={(selected: any) => setTimes(selected.map((s: any) => s.value))}
+                    placeholder="Pesquisar time (ex: Real Madrid)..."
+                    noOptionsMessage={() => "Digite para buscar na API"}
+                    formatOptionLabel={(data: any) => (
+                      <HStack>
+                        <Image src={data.value.logo} boxSize="20px" objectFit="contain" />
+                        <Text>{data.label}</Text>
+                      </HStack>
+                    )}
+                    styles={customSelectStyles}
                   />
-                  <IconButton aria-label="Adicionar" icon={<PlusIcon /> as any} size="sm" onClick={() => adicionarTime()} />
-                </HStack>
+                </FormControl>
               </VStack>
 
               <VStack spacing={3} align="stretch" mt={4}>
@@ -464,15 +495,17 @@ export function ConfigurarTorneio() {
                     <FormControl w="100%" maxW="300px" mx="auto">
                       <Select
                         placeholder="Escolha o time..."
-                        value={timeSelecionado}
-                        onChange={(e) => setTimeSelecionado(e.target.value)}
-                        variant="outline" borderRadius="4px" borderWidth={2}
-                        borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.400' }}
-                      >
-                        {timesDisponiveis.map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </Select>
+                        value={timeSelecionado ? { value: timeSelecionado, label: timeSelecionado.nome } : null}
+                        onChange={(selected: any) => setTimeSelecionado(selected ? selected.value : null)}
+                        options={timesDisponiveis.map(t => ({ value: t, label: t.nome }))}
+                        styles={customSelectStyles}
+                        formatOptionLabel={(data: any) => (
+                          <HStack>
+                            <Image src={data.value.logo} boxSize="20px" objectFit="contain" />
+                            <Text>{data.label}</Text>
+                          </HStack>
+                        )}
+                      />
                     </FormControl>
                     <Button onClick={confirmarEVincular} variant="solid" size="md" w="100%" maxW="300px" borderRadius="2px" isDisabled={!timeSelecionado}>
                       Confirmar e Vincular
@@ -499,9 +532,12 @@ export function ConfigurarTorneio() {
                     _dark={{ borderColor: 'whiteAlpha.300', bg: i % 2 === 0 ? 'whiteAlpha.50' : 'transparent' }}
                   >
                     <Text fontWeight={700} fontSize="sm">{d.amigo}</Text>
-                    <Badge variant="solid" bg="brand.dark" color="brand.light" _dark={{ bg: 'brand.light', color: 'brand.dark' }} borderRadius="2px">
-                      {d.time}
-                    </Badge>
+                    <HStack>
+                      {d.logoTime && <Image src={d.logoTime} boxSize="20px" objectFit="contain" />}
+                      <Badge variant="solid" bg="brand.dark" color="brand.light" _dark={{ bg: 'brand.light', color: 'brand.dark' }} borderRadius="2px">
+                        {d.time}
+                      </Badge>
+                    </HStack>
                   </Flex>
                 ))}
               </Box>

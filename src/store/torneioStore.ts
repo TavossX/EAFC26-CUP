@@ -8,6 +8,7 @@ import type {
   Partida,
   ConfiguracaoTorneio,
   FaseMataMata,
+  FormatoTorneio,
 } from '../types/torneio';
 
 // Fases que participam da progressao sequencial do bracket (terceiro_lugar e final sao paralelas ao fim)
@@ -280,7 +281,13 @@ interface TorneioState {
   partidas: Partida[];
 
   criarTorneio: (config: ConfiguracaoTorneio) => void;
-  sortearTudo: (config: Omit<ConfiguracaoTorneio, 'duplas'> & { amigos: string[]; times: string[] }) => void;
+  sortearTudo: (config: {
+    nome: string;
+    formato: FormatoTorneio;
+    idaEVolta: boolean;
+    amigos: string[];
+    times: { nome: string; logo?: string }[];
+  }) => void;
   gerarPlayoffs: () => void;
   registrarPlacarLiga: (partidaId: string, placarA: number, placarB: number) => void;
   registrarPlacarMataMata: (
@@ -288,7 +295,7 @@ interface TorneioState {
     penaltisA?: number, penaltisB?: number
   ) => void;
   publicarTorneio: () => Promise<string | null>;
-  carregarTorneioPublico: (id: string) => Promise<boolean>;
+  carregarTorneioPublico: (id: string) => Promise<{ user_id: string } | null>;
   resetarTorneio: () => void;
 }
 
@@ -313,8 +320,10 @@ export const useTorneioStore = create<TorneioState>()(
         };
 
         const participantes: Participante[] = config.duplas.map((dupla) => ({
-          id: uuidv4(), torneioId,
-          nomeAmigo: dupla.amigo, timeSorteado: dupla.time,
+          id: uuidv4(), torneioId: torneioId,
+          nomeAmigo: dupla.amigo,
+          timeSorteado: dupla.time,
+          logoTime: dupla.logoTime,
           pontos: 0, jogos: 0, vitorias: 0, empates: 0, derrotas: 0,
           golsPro: 0, golsContra: 0,
         }));
@@ -332,7 +341,11 @@ export const useTorneioStore = create<TorneioState>()(
       sortearTudo: ({ nome, formato, idaEVolta, amigos, times }) => {
         const amigosEmbaralhados = shuffle([...amigos]);
         const timesEmbaralhados  = shuffle([...times]);
-        const duplas = amigosEmbaralhados.map((amigo, i) => ({ amigo, time: timesEmbaralhados[i] }));
+        const duplas = amigosEmbaralhados.map((amigo, i) => ({ 
+          amigo, 
+          time: timesEmbaralhados[i]?.nome || '',
+          logoTime: timesEmbaralhados[i]?.logo
+        }));
         get().criarTorneio({ nome, formato, idaEVolta, duplas });
       },
 
@@ -519,11 +532,11 @@ export const useTorneioStore = create<TorneioState>()(
       // Carregar do Supabase
       carregarTorneioPublico: async (id: string) => {
         const { data, error } = await supabase
-          .from('torneios_publicos').select('dados').eq('id', id).single();
-        if (error || !data?.dados) return false;
+          .from('torneios_publicos').select('dados, user_id').eq('id', id).single();
+        if (error || !data?.dados) return null;
         const { torneio, participantes, partidas } = data.dados as TorneioState;
         set({ torneio, participantes, partidas });
-        return true;
+        return { user_id: data.user_id };
       },
 
       // Resetar
