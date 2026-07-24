@@ -2,22 +2,24 @@ import {
   Badge,
   Box,
   Button,
+  Divider,
   Flex,
   Heading,
   HStack,
   Image,
   Spinner,
   Text,
-  VStack,
-  Divider,
   useToast,
+  VStack,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useTorneioStore } from '../store/torneioStore';
+import { useNavigate, useParams } from 'react-router-dom';
 import CanecaChopp from '../assets/logos/CanecaChopp.png';
-import { TabelaClassificacao } from '../components/TabelaClassificacao';
 import { Chaveamento } from '../components/Chaveamento';
+import { TabelaClassificacao } from '../components/TabelaClassificacao';
+import { supabase } from '../lib/supabase';
+import { useTorneioStore } from '../store/torneioStore';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 // ─── Ícones SVG ───────────────────────────────────────────────────────────────
 const RefreshIcon = () => (
@@ -38,6 +40,7 @@ export function Convite() {
 
   const [status, setStatus] = useState<'carregando' | 'ok' | 'erro'>('carregando');
   const [atualizando, setAtualizando] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(true);
 
   // Progresso calculado reativamente (antes dos returns condicionais)
   const totalFinalizados = partidas.filter((p) => p.finalizada).length;
@@ -50,19 +53,28 @@ export function Convite() {
     if (showToast) setAtualizando(true);
     else setStatus('carregando');
 
-    const ok = await carregarTorneioPublico(campeonatoId);
+    const result = await carregarTorneioPublico(campeonatoId);
+
+    if (result) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && result.user_id === user.id) {
+        setIsReadOnly(false);
+      } else {
+        setIsReadOnly(true);
+      }
+    }
 
     if (showToast) {
       setAtualizando(false);
       toast({
-        title: ok ? '✅ Dados atualizados!' : '⛔ Erro ao atualizar',
-        status: ok ? 'success' : 'error',
+        title: result ? '✅ Dados atualizados!' : '⛔ Erro ao atualizar',
+        status: result ? 'success' : 'error',
         duration: 2000,
         position: 'top',
         isClosable: true,
       });
     } else {
-      setStatus(ok ? 'ok' : 'erro');
+      setStatus(result ? 'ok' : 'erro');
     }
   };
 
@@ -132,16 +144,19 @@ export function Convite() {
                   colorScheme="orange" variant="outline"
                   fontSize="2xs" borderRadius="2px"
                 >
-                  {torneio.formato === 'liga' ? 'Liga' : 'Mata-mata'}
+                  {torneio.formato === 'liga' ? 'Liga' : torneio.formato === 'liga_com_playoffs' ? 'Liga + Playoffs' : 'Mata-mata'}
                 </Badge>
-                <Badge variant="outline" fontSize="2xs" borderRadius="2px">
-                  Somente leitura
-                </Badge>
+                {isReadOnly && (
+                  <Badge variant="outline" fontSize="2xs" borderRadius="2px">
+                    Somente leitura
+                  </Badge>
+                )}
               </HStack>
             </VStack>
           </HStack>
 
           <HStack spacing={3}>
+            <ThemeToggle />
             <Button
               size="sm" variant="solid"
               onClick={() => navigate('/')}
@@ -222,13 +237,25 @@ export function Convite() {
             <Heading size="md" fontFamily="heading" mb={5}>Classificação</Heading>
             <TabelaClassificacao />
           </Box>
+        ) : torneio.formato === 'liga_com_playoffs' ? (
+          <Box>
+            <Heading size="md" fontFamily="heading" mb={5}>Classificação</Heading>
+            <TabelaClassificacao />
+            
+            {torneio.playoffsGerados && (
+              <Box mt={10}>
+                <Heading size="md" fontFamily="heading" mb={4}>Playoffs</Heading>
+                <Chaveamento isReadOnly={isReadOnly} />
+              </Box>
+            )}
+          </Box>
         ) : (
           <Box>
             <Heading size="md" fontFamily="heading" mb={2}>Chaveamento</Heading>
             <Text fontSize="sm" opacity={0.6} mb={5}>
               Acompanhe os confrontos e veja quem avança de fase.
             </Text>
-            <Chaveamento />
+            <Chaveamento isReadOnly={isReadOnly} />
           </Box>
         )}
 
