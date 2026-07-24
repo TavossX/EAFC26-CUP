@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import LogoBira from '../assets/logos/Logo.png';
 import { supabase } from '../lib/supabase';
 import { useTorneioStore } from '../store/torneioStore';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 /* ── Ícones SVG ─────────────────────────────────────────────── */
 const ChevronDownIcon = () => (
@@ -158,6 +159,8 @@ export function Dashboard() {
 
           {/* Ações do header */}
           <HStack spacing={3} flexShrink={0}>
+            <ThemeToggle />
+            
             <Button
               id="btn-novo-torneio"
               size="sm"

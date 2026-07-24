@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTorneioStore } from '../store/torneioStore';
 import { Chaveamento } from '../components/Chaveamento';
 import { ModalCompartilhar } from '../components/ModalCompartilhar';
+import { ThemeToggle } from '../components/ThemeToggle';
 import CanecaChopp from '../assets/logos/CanecaChopp.png';
 import { supabase } from '../lib/supabase';
 
@@ -93,6 +94,7 @@ export function TorneioMataMata() {
             </VStack>
           </HStack>
           <HStack spacing={3}>
+            <ThemeToggle />
             <Badge variant="outline" colorScheme="orange" borderRadius="2px" px={3} display={{ base: 'none', sm: 'flex' }}>
               {totalFinalizados}/{partidas.length} jogos
             </Badge>
