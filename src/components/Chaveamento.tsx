@@ -7,6 +7,7 @@ import {
   Text,
   VStack,
   useDisclosure,
+  Image,
 } from '@chakra-ui/react';
 import { useState } from 'react';
 import { useTorneioStore } from '../store/torneioStore';
@@ -29,9 +30,11 @@ const ORDEM_FASES: FaseMataMata[] = ['oitavas', 'quartas', 'semifinal', 'final']
 function CardPartida({
   partida,
   onAbrir,
+  isReadOnly,
 }: {
   partida: Partida;
   onAbrir: (partida: Partida) => void;
+  isReadOnly?: boolean;
 }) {
   const { participantes } = useTorneioStore();
 
@@ -51,11 +54,11 @@ function CardPartida({
       _dark={{ borderColor: partida.finalizada ? 'whiteAlpha.300' : 'whiteAlpha.400', bg: partida.finalizada ? 'whiteAlpha.50' : 'brand.surfaceDark' }}
       p={0}
       overflow="hidden"
-      cursor={partida.finalizada ? 'default' : 'pointer'}
-      onClick={() => !partida.finalizada && !isBye && onAbrir(partida)}
+      cursor={partida.finalizada || isReadOnly ? 'default' : 'pointer'}
+      onClick={() => !isReadOnly && !partida.finalizada && !isBye && onAbrir(partida)}
       transition="all 0.2s"
       _hover={
-        !partida.finalizada && !isBye
+        !isReadOnly && !partida.finalizada && !isBye
           ? { borderColor: 'brand.orange' }
           : {}
       }
@@ -77,9 +80,9 @@ function CardPartida({
         </Text>
         {partida.finalizada ? (
           <Badge variant="outline" borderRadius="2px" fontSize="2xs">Finalizado</Badge>
-        ) : (
+        ) : !isReadOnly ? (
           <Badge variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px" fontSize="2xs">Lançar Placar</Badge>
-        )}
+        ) : null}
       </Flex>
 
       {/* Participante A */}
@@ -94,7 +97,10 @@ function CardPartida({
           >
             {pA?.nomeAmigo ?? '?'}
           </Text>
-          <Text fontSize="2xs" opacity={0.6}>{pA?.timeSorteado ?? '—'}</Text>
+          <HStack spacing={1}>
+            {pA?.logoTime && <Image src={pA.logoTime} boxSize="12px" objectFit="contain" opacity={bVenceu ? 0.4 : 1} />}
+            <Text fontSize="2xs" opacity={0.6}>{pA?.timeSorteado ?? '—'}</Text>
+          </HStack>
         </VStack>
         <Text
           fontWeight={800} fontSize="lg"
@@ -118,7 +124,10 @@ function CardPartida({
           >
             {isBye ? 'BYE (Avanço automático)' : (pB?.nomeAmigo ?? '?')}
           </Text>
-          <Text fontSize="2xs" opacity={0.6}>{pB?.timeSorteado ?? '—'}</Text>
+          <HStack spacing={1}>
+            {pB?.logoTime && <Image src={pB.logoTime} boxSize="12px" objectFit="contain" opacity={aVenceu ? 0.4 : 1} />}
+            <Text fontSize="2xs" opacity={0.6}>{pB?.timeSorteado ?? '—'}</Text>
+          </HStack>
         </VStack>
         <Text
           fontWeight={800} fontSize="lg"
@@ -145,10 +154,12 @@ function BlocoConfronto({
   confrontoId,
   partidas,
   onAbrir,
+  isReadOnly,
 }: {
   confrontoId: string;
   partidas: Partida[];
   onAbrir: (partida: Partida) => void;
+  isReadOnly?: boolean;
 }) {
   const { participantes } = useTorneioStore();
   const jogos = partidas.filter((p) => p.confrontoId === confrontoId)
@@ -192,7 +203,7 @@ function BlocoConfronto({
 
       <VStack spacing={0} p={2}>
         {jogos.map((jogo) => (
-          <CardPartida key={jogo.id} partida={jogo} onAbrir={onAbrir} />
+          <CardPartida key={jogo.id} partida={jogo} onAbrir={onAbrir} isReadOnly={isReadOnly} />
         ))}
       </VStack>
 
@@ -203,7 +214,10 @@ function BlocoConfronto({
             <Text fontSize="xs" color="brand.dark" fontWeight={700} textTransform="uppercase" letterSpacing="wide">
               {vencedor.nomeAmigo} avança
             </Text>
-            <Text fontSize="2xs" color="brand.dark" opacity={0.8}>{vencedor.timeSorteado}</Text>
+            <HStack spacing={1}>
+              {vencedor.logoTime && <Image src={vencedor.logoTime} boxSize="12px" objectFit="contain" />}
+              <Text fontSize="2xs" color="brand.dark" opacity={0.8}>{vencedor.timeSorteado}</Text>
+            </HStack>
           </VStack>
         </Flex>
       )}
@@ -212,7 +226,7 @@ function BlocoConfronto({
 }
 
 // ─── Bloco de jogo unico (sem confrontoId) ─────────────────────────────────────
-function BlocoJogoUnico({ partida, onAbrir }: { partida: Partida; onAbrir: (p: Partida) => void }) {
+function BlocoJogoUnico({ partida, onAbrir, isReadOnly }: { partida: Partida; onAbrir: (p: Partida) => void; isReadOnly?: boolean }) {
   const { participantes } = useTorneioStore();
   const vencedor = participantes.find((p) => p.id === partida.vencedorId);
 
@@ -226,14 +240,17 @@ function BlocoJogoUnico({ partida, onAbrir }: { partida: Partida; onAbrir: (p: P
       minW={{ base: '100%', md: '200px' }}
       maxW={{ base: '100%', md: '220px' }}
     >
-      <CardPartida partida={partida} onAbrir={onAbrir} />
+      <CardPartida partida={partida} onAbrir={onAbrir} isReadOnly={isReadOnly} />
       {vencedor && (
         <Flex bg="brand.orange" px={3} py={2} align="center" gap={2} borderTopWidth={1} borderColor="brand.dark">
           <VStack align="flex-start" spacing={0}>
             <Text fontSize="xs" color="brand.dark" fontWeight={700} textTransform="uppercase" letterSpacing="wide">
               {vencedor.nomeAmigo} avança
             </Text>
-            <Text fontSize="2xs" color="brand.dark" opacity={0.8}>{vencedor.timeSorteado}</Text>
+            <HStack spacing={1}>
+              {vencedor.logoTime && <Image src={vencedor.logoTime} boxSize="12px" objectFit="contain" />}
+              <Text fontSize="2xs" color="brand.dark" opacity={0.8}>{vencedor.timeSorteado}</Text>
+            </HStack>
           </VStack>
         </Flex>
       )}
@@ -242,7 +259,7 @@ function BlocoJogoUnico({ partida, onAbrir }: { partida: Partida; onAbrir: (p: P
 }
 
 // ─── Chaveamento principal ────────────────────────────────────────────────
-function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p: Partida) => void }) {
+function BlocoJogo3oLugar({ partida, onAbrir, isReadOnly }: { partida: Partida; onAbrir: (p: Partida) => void; isReadOnly?: boolean }) {
   const { participantes } = useTorneioStore();
   const pA = participantes.find((p) => p.id === partida.participanteAId);
   const pB = participantes.find((p) => p.id === partida.participanteBId);
@@ -264,7 +281,7 @@ function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p:
         <Text fontSize="2xs" opacity={0.6} fontWeight={700} textTransform="uppercase">Disputa de 3º Lugar</Text>
         {partida.finalizada
           ? <Badge variant="outline" borderRadius="2px" fontSize="2xs">Finalizado</Badge>
-          : <Badge variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px" fontSize="2xs">Lançar Placar</Badge>
+          : !isReadOnly ? <Badge variant="solid" bg="brand.orange" color="brand.dark" borderRadius="2px" fontSize="2xs">Lançar Placar</Badge> : null
         }
       </Flex>
       <Flex px={3} py={2} justify="space-between" align="center"
@@ -272,7 +289,10 @@ function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p:
       >
         <VStack align="flex-start" spacing={0}>
           <Text fontWeight={700} fontSize="sm">{pA?.nomeAmigo ?? '?'}</Text>
-          <Text fontSize="2xs" opacity={0.6}>{pA?.timeSorteado ?? '—'}</Text>
+          <HStack spacing={1}>
+            {pA?.logoTime && <Image src={pA.logoTime} boxSize="12px" objectFit="contain" />}
+            <Text fontSize="2xs" opacity={0.6}>{pA?.timeSorteado ?? '—'}</Text>
+          </HStack>
         </VStack>
         <Text fontWeight={800} fontSize="lg">{partida.placarA ?? '—'}</Text>
       </Flex>
@@ -282,7 +302,10 @@ function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p:
       >
         <VStack align="flex-start" spacing={0}>
           <Text fontWeight={700} fontSize="sm">{pB?.nomeAmigo ?? '?'}</Text>
-          <Text fontSize="2xs" opacity={0.6}>{pB?.timeSorteado ?? '—'}</Text>
+          <HStack spacing={1}>
+            {pB?.logoTime && <Image src={pB.logoTime} boxSize="12px" objectFit="contain" />}
+            <Text fontSize="2xs" opacity={0.6}>{pB?.timeSorteado ?? '—'}</Text>
+          </HStack>
         </VStack>
         <Text fontWeight={800} fontSize="lg">{partida.placarB ?? '—'}</Text>
       </Flex>
@@ -294,7 +317,7 @@ function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p:
           <Text fontSize="xs" fontWeight={700}>{vencedor.nomeAmigo} — 3º Lugar</Text>
         </Flex>
       )}
-      {!partida.finalizada && (
+      {!isReadOnly && !partida.finalizada && (
         <Box px={3} pb={3} pt={1}>
           <Badge
             cursor="pointer" variant="solid" bg="brand.dark" color="brand.light"
@@ -310,7 +333,7 @@ function BlocoJogo3oLugar({ partida, onAbrir }: { partida: Partida; onAbrir: (p:
   );
 }
 
-export function Chaveamento() {
+export function Chaveamento({ isReadOnly = false }: { isReadOnly?: boolean }) {
   const { partidas } = useTorneioStore();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
@@ -348,85 +371,134 @@ export function Chaveamento() {
     );
   }
 
+  const fasesAntesFinal = fasesPresentes.filter((f) => f !== 'final' && f !== 'terceiro_lugar');
+  const hasFinal = fasesPresentes.includes('final');
+
+  // Helper para agrupar todos os blocos de uma fase
+  const getBlocosFase = (fase: FaseMataMata) => {
+    return [
+      ...confrontosDaFase(fase).map((cId) => (
+        <BlocoConfronto key={cId} confrontoId={cId} partidas={partidas} onAbrir={abrirModal} isReadOnly={isReadOnly} />
+      )),
+      ...jogoUnicoDaFase(fase).map((p) => (
+        <BlocoJogoUnico key={p.id} partida={p} onAbrir={abrirModal} isReadOnly={isReadOnly} />
+      )),
+    ];
+  };
+
+  const columns: {
+    fase: FaseMataMata;
+    blocos: any[];
+    direction: 'left-to-right' | 'right-to-left' | 'center';
+    isLast: boolean;
+  }[] = [];
+
+  // Lado Esquerdo
+  fasesAntesFinal.forEach((fase, idx) => {
+    const blocos = getBlocosFase(fase);
+    const metade = Math.ceil(blocos.length / 2);
+    columns.push({
+      fase,
+      blocos: blocos.slice(0, metade),
+      direction: 'left-to-right',
+      isLast: idx === fasesAntesFinal.length - 1 && !hasFinal,
+    });
+  });
+
+  // Centro
+  if (hasFinal) {
+    columns.push({
+      fase: 'final',
+      blocos: getBlocosFase('final'),
+      direction: 'center',
+      isLast: true,
+    });
+  }
+
+  // Lado Direito
+  [...fasesAntesFinal].reverse().forEach((fase, idx) => {
+    const blocos = getBlocosFase(fase);
+    const metade = Math.ceil(blocos.length / 2);
+    columns.push({
+      fase,
+      blocos: blocos.slice(metade),
+      direction: 'right-to-left',
+      isLast: idx === 0 && !hasFinal,
+    });
+  });
+
   return (
     <>
       {/* Bracket — rolagem horizontal no mobile */}
-      <Box overflowX="auto" pb={4}>
-        <HStack
-          spacing={0}
-          align="flex-start"
-          minW={{ base: 'max-content', lg: 'auto' }}
-        >
-          {fasesPresentes.map((fase, faseIdx) => (
-            <HStack key={fase} spacing={0} align="stretch">
-              {/* Coluna da fase */}
-              <VStack
-                spacing={4}
-                align="stretch"
-                px={3}
-                minW={{ base: '240px', md: '260px' }}
-              >
+      <Box overflowX="auto" pb={4} pt={10}>
+        <HStack spacing="40px" align="stretch" h="full" minH="300px">
+          {columns.map((col, colIdx) => {
+            const pairs = [];
+            for (let i = 0; i < col.blocos.length; i += 2) {
+              pairs.push(col.blocos.slice(i, i + 2));
+            }
+
+            return (
+              <Flex key={`${col.fase}-${col.direction}-${colIdx}`} direction="column" justify="space-around" align="center" position="relative" minW="240px">
                 {/* Label da fase */}
-                <Box textAlign="center" py={2}>
+                <Box position="absolute" top="-40px" w="full" textAlign="center">
                   <Badge
-                    colorScheme="orange"
-                    variant="outline"
-                    borderRadius="2px"
-                    px={4}
-                    py={1}
-                    fontSize="xs"
-                    fontWeight={700}
-                    textTransform="uppercase"
-                    letterSpacing="wide"
+                    colorScheme="orange" variant="outline" borderRadius="2px" px={4} py={1}
+                    fontSize="xs" fontWeight={700} textTransform="uppercase" letterSpacing="wide"
                   >
-                    {FASES_LABEL[fase]}
+                    {FASES_LABEL[col.fase]} {col.direction === 'right-to-left' ? '(Lado B)' : col.direction === 'left-to-right' ? '(Lado A)' : ''}
                   </Badge>
                 </Box>
 
-                {/* Confrontos (ida+volta) */}
-                <VStack spacing={4} align="stretch" justify="space-around" flex={1}>
-                  {confrontosDaFase(fase).map((cId) => (
-                    <BlocoConfronto
-                      key={cId} confrontoId={cId} partidas={partidas} onAbrir={abrirModal}
-                    />
-                  ))}
-                  {/* Jogos unicos da mesma fase */}
-                  {jogoUnicoDaFase(fase).map((p) => (
-                    <BlocoJogoUnico key={p.id} partida={p} onAbrir={abrirModal} />
-                  ))}
-                </VStack>
-              </VStack>
+                <Flex direction="column" justify="space-around" flex={1} w="full">
+                  {pairs.map((pair, idx) => (
+                    <Flex key={idx} direction="column" justify="space-around" flex={1} position="relative">
+                      {pair.map((bloco, bIdx) => (
+                        <Flex key={bIdx} align="center" justify="center" position="relative" zIndex={2} my={4}>
+                          {bloco}
+                        </Flex>
+                      ))}
 
-              {/* Conector visual entre fases */}
-              {faseIdx < fasesPresentes.length - 1 && (
-                <Flex align="center" justify="center" px={1}>
-                  <Box
-                    w="24px" h="1px"
-                    bg="brand.dark"
-                    _dark={{ bg: 'whiteAlpha.300' }}
-                    position="relative"
-                  >
-                    <Box
-                      position="absolute" right={-1} top="50%"
-                      transform="translateY(-50%)"
-                      w={0} h={0}
-                      borderTop="4px solid transparent"
-                      borderBottom="4px solid transparent"
-                      borderLeft="6px solid"
-                      borderLeftColor="brand.dark"
-                      _dark={{ borderLeftColor: 'whiteAlpha.300' }}
-                    />
-                  </Box>
-                  <Text fontFamily="heading" fontSize="xs" mx={1} opacity={0.5}>VS</Text>
-                  <Box
-                    w="24px" h="1px"
-                    bg="brand.dark"
-                    _dark={{ bg: 'whiteAlpha.300' }}
-                  />
+                      {/* Conector C-shape */}
+                      {!col.isLast && col.direction !== 'center' && pair.length === 2 && (
+                        <Box
+                          position="absolute"
+                          top="25%" bottom="25%"
+                          {...(col.direction === 'left-to-right' ? { right: "-20px", borderRightWidth: 1 } : { left: "-20px", borderLeftWidth: 1 })}
+                          borderTopWidth={1} borderBottomWidth={1}
+                          borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }}
+                          w="20px" zIndex={1}
+                        />
+                      )}
+                      {/* Linha para próxima fase */}
+                      {!col.isLast && col.direction !== 'center' && pair.length === 2 && (
+                        <Box
+                          position="absolute"
+                          top="50%"
+                          {...(col.direction === 'left-to-right' ? { right: "-40px" } : { left: "-40px" })}
+                          w="20px" h="1px"
+                          bg="brand.dark" _dark={{ bg: 'whiteAlpha.300' }}
+                          zIndex={1}
+                        />
+                      )}
+
+                      {/* Linha reta se tiver só 1 item no par */}
+                      {!col.isLast && col.direction !== 'center' && pair.length === 1 && (
+                        <Box
+                          position="absolute"
+                          top="50%"
+                          {...(col.direction === 'left-to-right' ? { right: "-40px" } : { left: "-40px" })}
+                          w="40px" h="1px"
+                          bg="brand.dark" _dark={{ bg: 'whiteAlpha.300' }}
+                          zIndex={1}
+                        />
+                      )}
+                    </Flex>
+                  ))}
                 </Flex>
-              )}
-            </HStack>
-          ))}
+              </Flex>
+            );
+          })}
         </HStack>
       </Box>
 
@@ -442,7 +514,7 @@ export function Chaveamento() {
           </Text>
           <HStack spacing={4} flexWrap="wrap">
             {partidasTerceiroLugar.map((p) => (
-              <BlocoJogo3oLugar key={p.id} partida={p} onAbrir={abrirModal} />
+              <BlocoJogo3oLugar key={p.id} partida={p} onAbrir={abrirModal} isReadOnly={isReadOnly} />
             ))}
           </HStack>
         </Box>

@@ -11,6 +11,8 @@ import {
   Tr,
   Badge,
   Tooltip,
+  VStack,
+  Image,
 } from '@chakra-ui/react';
 import { useMemo } from 'react';
 import { useTorneioStore } from '../store/torneioStore';
@@ -115,7 +117,7 @@ export function TabelaClassificacao({ highlightTop4 = false }: { highlightTop4?:
         <Table variant="unstyled" size="sm">
           <Thead>
             <Tr borderBottom="1px solid" borderColor="brand.dark" _dark={{ borderColor: 'whiteAlpha.300' }}>
-              {['#', 'Participante', 'Time', 'P', 'J', 'V', 'E', 'D', 'GP', 'GC', 'SG'].map((col) => (
+              {['#', 'Participante', 'P', 'J', 'V', 'E', 'D', 'GP', 'GC', 'SG'].map((col) => (
                 <Th
                   key={col}
                   fontSize="xs"
@@ -125,7 +127,7 @@ export function TabelaClassificacao({ highlightTop4 = false }: { highlightTop4?:
                   opacity={0.7}
                   py={3}
                   px={col === '#' || col === 'P' ? 4 : 3}
-                  textAlign={col === 'Participante' || col === 'Time' ? 'left' : 'center'}
+                  textAlign={col === 'Participante' ? 'left' : 'center'}
                 >
                   <Tooltip
                     label={
@@ -181,31 +183,17 @@ export function TabelaClassificacao({ highlightTop4 = false }: { highlightTop4?:
                     <Text fontWeight={800} fontSize="sm">
                       {pos}º
                     </Text>
-                    {highlightTop4 && pos <= 4 && (
-                      <Badge colorScheme="orange" variant="solid" borderRadius="2px" fontSize="2xs" px={1} mt={0.5}>
-                        PO
-                      </Badge>
-                    )}
                   </Td>
 
-                  {/* Nome */}
+                  {/* Nome e Time */}
                   <Td py={3} px={3}>
-                    <Text fontWeight={700} fontSize="sm" noOfLines={1}>
-                      {p.nomeAmigo}
-                    </Text>
-                  </Td>
-
-                  {/* Time */}
-                  <Td py={3} px={3}>
-                    <Badge
-                      variant="outline"
-                      borderRadius="2px"
-                      px={2}
-                      fontSize="xs"
-                      noOfLines={1}
-                    >
-                      {p.timeSorteado}
-                    </Badge>
+                    <VStack align="flex-start" spacing={0}>
+                      <Text fontWeight={700} fontSize="sm">{p.nomeAmigo}</Text>
+                      <HStack spacing={1}>
+                        {p.logoTime && <Image src={p.logoTime} boxSize="12px" objectFit="contain" />}
+                        <Text fontSize="xs" opacity={0.7}>{p.timeSorteado}</Text>
+                      </HStack>
+                    </VStack>
                   </Td>
 
                   {/* Pontos (destaque) */}

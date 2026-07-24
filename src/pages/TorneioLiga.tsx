@@ -26,6 +26,7 @@ import { TabelaClassificacao } from '../components/TabelaClassificacao';
 import { ModalPlacar } from '../components/ModalPlacar';
 import { ModalCompartilhar } from '../components/ModalCompartilhar';
 import { Chaveamento } from '../components/Chaveamento';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const ResetIcon = () => (
   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -111,6 +112,7 @@ export function TorneioLiga() {
             </VStack>
           </HStack>
           <HStack spacing={3}>
+            <ThemeToggle />
             <Badge variant="outline" colorScheme="orange" borderRadius="2px" px={3} display={{ base: 'none', sm: 'flex' }}>
               {totalFinalizadas}/{partidas.length} jogos
             </Badge>
@@ -297,9 +299,12 @@ export function TorneioLiga() {
                                   >
                                     {pA?.nomeAmigo ?? '?'}
                                   </Text>
-                                  <Text fontSize="2xs" opacity={0.6} noOfLines={1}>
-                                    {pA?.timeSorteado ?? '—'}
-                                  </Text>
+                                  <HStack spacing={1}>
+                                    {pA?.logoTime && <Image src={pA.logoTime} boxSize="12px" objectFit="contain" opacity={bVenceu ? 0.4 : 1} />}
+                                    <Text fontSize="2xs" opacity={0.6} noOfLines={1}>
+                                      {pA?.timeSorteado ?? '—'}
+                                    </Text>
+                                  </HStack>
                                 </VStack>
                                 <Text fontWeight={800} fontSize="lg"
                                   opacity={bVenceu ? 0.4 : 1}
@@ -321,9 +326,12 @@ export function TorneioLiga() {
                                   >
                                     {pB?.nomeAmigo ?? '?'}
                                   </Text>
-                                  <Text fontSize="2xs" opacity={0.6} noOfLines={1}>
-                                    {pB?.timeSorteado ?? '—'}
-                                  </Text>
+                                  <HStack spacing={1}>
+                                    {pB?.logoTime && <Image src={pB.logoTime} boxSize="12px" objectFit="contain" opacity={aVenceu ? 0.4 : 1} />}
+                                    <Text fontSize="2xs" opacity={0.6} noOfLines={1}>
+                                      {pB?.timeSorteado ?? '—'}
+                                    </Text>
+                                  </HStack>
                                 </VStack>
                                 <Text fontWeight={800} fontSize="lg"
                                   opacity={aVenceu ? 0.4 : 1}
